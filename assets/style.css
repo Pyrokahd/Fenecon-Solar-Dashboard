@@ -1,0 +1,70 @@
+:root {
+  --div_BG: #1d2c45;
+  --black: #000000;
+  --fontcolor: #cce7e8;
+  --debug: #FF0000;
+  --slider: #2a6fde;
+}
+
+body {
+    background-color: #000000;
+}
+
+#layout {
+    border: 1px solid white;
+}
+
+#header_div {
+    background-color: var(--div_BG);
+    color: var(--fontcolor);
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 10px;
+    padding-bottom: 1px;
+
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0px 10px; /* row-gap column gap */
+}
+
+.div_class {
+    background-color: var(--div_BG);
+}
+
+#header_block_div {
+    width: 100px;
+}
+
+#rangeslider_div {
+    margin-top: 15px;
+}
+
+
+#date_rangeslider .rc-slider-rail{
+    /* bar color */
+    background-color: var(--fontcolor);
+}
+#date_rangeslider .rc-slider-track {
+    /* slider(selector) bar color*/
+    background-color: var(--slider);
+}
+#date_rangeslider .rc-slider-handle-1, #date_rangeslider .rc-slider-handle-2{
+    /* Handle color*/
+    background-color: var(--slider);
+    border: solid 2px #96dbfa;
+}
+#date_rangeslider .rc-slider-dot{
+    /* slider dots*/
+    background-color: white;
+    border: solid 2px #96dbfa;
+}
+
+
+#date_rangeslider .rc-slider-with-marks {
+  /* Background behind Slider */
+  /* background-color: red;  */
+}
+
+a:link {color: #ddf9f9}

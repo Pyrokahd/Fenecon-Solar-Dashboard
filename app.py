@@ -2,8 +2,9 @@
 # Fenecon data logger
 
 import dash
-from dash import dcc
-from dash import html
+from dash import dcc  # https://dash.plotly.com/dash-core-components
+from dash import html  # https://dash.plotly.com/dash-html-components
+from dash.dependencies import Input, Output, State
 
 import plotly.express as px  # express plot
 from plotly.tools import mpl_to_plotly  # matplot
@@ -19,9 +20,15 @@ import matplotlib.dates as mdates
 
 # Typehint: https://docs.python.org/3/library/typing.html
 
-APP = dash.Dash()  # default: http://127.0.0.1:8050
+
+app = dash.Dash(__name__)  # default: http://127.0.0.1:8050
+# Dash automatically loads CSS files that are in the assets folder
+#assets_path = os.path.join(os.getcwd(), "assets")
+# app.css.append_css({"relative_package_path":css_path})
+
 filename: str = "REP_fenecon_voltage_data_v5.csv"
 
+colors = {"background_plot": "#DDDDDD", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
 
 def read_data_as_df(filename):
     df = pd.read_csv(
@@ -86,11 +93,11 @@ def get_list_of_avg_module_voltage_values(all_cell_values) -> list:
     return avg_values_per_module, avg_labels
 
 
-def add_avg_module_to_df(avg_module_values, avg_labels, df):
+def add_avg_module_to_df(avg_module_values, module_names, df):
     # combine the values for every column into tuples
     # because pandas creates row per row so 1 tuple are all values in the first row from all columns
     # for this unpack the lists as args into zip https://stackoverflow.com/questions/4112265/how-to-zip-lists-in-a-list
-    avg_df = pd.DataFrame(list(zip(*avg_module_values)), columns=avg_labels)
+    avg_df = pd.DataFrame(list(zip(*avg_module_values)), columns=module_names)
     # concat both frames
     new_df = pd.concat([df, avg_df], axis=1, join="inner")
     return new_df
@@ -150,43 +157,103 @@ def create_fig_graphobject(df, module_names):
     fig = go.Figure()
     for name in module_names:
         fig.add_trace(go.Scatter(x=df['Zeitstempel'], y=df[name], mode='lines',
-                                 showlegend=True, line=dict(width=0.8)
+                                 showlegend=True, line=dict(width=0.8), name=name,
+                                 hovertemplate="%s<br>Date=%%{x}<br>mV=%%{y}<extra></extra>"%name
                                  ))
 
     fig.update_layout(legend_title_text="Modules")
     fig.update_xaxes(title_text="Date")
     fig.update_yaxes(title_text="Avg mV")
+    # change colors
+    fig.update_layout(
+        plot_bgcolor=colors["background_plot"],
+        paper_bgcolor=colors["background_area"],
+        font_color=colors["text"]
+    )
+
     return fig
 
 
-def create_app_layout(fig):
+def create_headerdiv():
+    header_text: str = '''
+        # Dash and Markdown
+
+        Dash apps can be written in Markdown.
+        Dash uses the [CommonMark](http://commonmark.org/)
+        specification of Markdown.
+        Check out their [60 Second Markdown Tutorial](http://commonmark.org/help/)
+        if this is your first introduction to Markdown!
+        '''
+
+    return html.Div([
+        html.Img(src=os.path.join("assets", "driller.PNG")),
+        dcc.Markdown(children=header_text)
+    ], id="header_div", className="container")
+
+
+def create_app_layout(fig, df):
     """
-    add html elements with figues to the dash app
+    add html elements and figues to the dash app
     :param fig:
     :type fig:
     :return:
     :rtype:
     """
-    #root_div = html.Div(id="maindiv")
-    #root_div.children.append(html.Div([ dcc.Dropdown(id="dropdown",options=[{"label": y, "value": y}for y in range(0, 100)]) ]))
-    APP.layout = html.Div([dcc.Graph(id="fig1", figure=fig)])
-    #APP.layout = html.Div([dcc.Graph(id="fig1", figure=figs[0])], [dcc.Graph(id="fig2", figure=figs[0])])
+    # reduce time timestamp resolution to per day basis
+    df_time_as_days = df.copy()
+    df_time_as_days['Zeitstempel'] = df_time_as_days['Zeitstempel'].dt.date
+    # dates as numbers
+    numdate = [x for x in range(len(df_time_as_days['Zeitstempel'].unique()))]
+
+    app.layout = html.Div([
+        create_headerdiv(),
+
+        html.Div([
+            dcc.Graph(id="fig1", figure=fig)
+        ], id="figure_div", className="div_class"),
+
+        html.Div([
+            dcc.RangeSlider(min=numdate[0], max=numdate[-1], value=[numdate[-0], numdate[-1]],
+                        #marks={numd: date.strftime('%d/%m/%y') for numd, date in zip(numdate, df_time_as_days['Zeitstempel'].unique())},
+                        marks={numd: {"label": date.strftime('%d/%m/%y'), "style": {"color":colors["text"]} } for numd, date in zip(numdate, df_time_as_days['Zeitstempel'].unique())},
+                        #tooltip = {"placement": "bottom", "always_visible": False}
+                        updatemode='drag',
+                        id="date_rangeslider")
+        ], id="rangeslider_div", className="div_class")
+
+
+    ], id="layout", className="div_class")
+
+
+@app.callback(
+    Output('date_rangeslider', 'marks'),
+    [Input('date_rangeslider', 'value')],
+    [State('date_rangeslider', 'marks')]
+)
+def update_marks(vals, marks):
+    for k in marks:
+        if int(k) >= vals[0] and int(k) <= vals[1]:
+            marks[str(k)]['style']['color'] = colors["text"]  # selected
+        else:
+            marks[str(k)]['style']['color'] = colors["text_disabled"]  # not selected
+    return marks
 
 
 if __name__ == "__main__":
     df = read_data_as_df(filename)
     cell_values, cell_names = get_list_of_cell_voltage_values(df)
-    avg_module_values, module_names =  get_list_of_avg_module_voltage_values(cell_values)
+    avg_module_values, module_names = get_list_of_avg_module_voltage_values(cell_values)
     df = add_avg_module_to_df(avg_module_values, module_names, df)
-
-    fig1 = create_fig_express(df, module_names)
+    #fig1 = create_fig_express(df, module_names)
     #fig2 = create_fig_matplot(avg_module_values, module_names)
-    fig3 = create_fig_graphobject(df, module_names)
+    fig = create_fig_graphobject(df, module_names)
 
-    create_app_layout(fig3)
+    create_app_layout(fig, df)
 
 
     print("main running")
-    APP.run_server(debug=True)
+    app.run_server(debug=True)
+
+    # todo make perma loop and check if callbacks still work and update the server
 
 
