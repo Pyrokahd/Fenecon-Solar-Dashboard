@@ -174,6 +174,28 @@ def create_fig_graphobject(df, module_names):
     return fig
 
 
+def create_bar_fig(df, module_names):
+    avg_per_mod = []
+    print("cghecvk")
+    print(module_names)
+    for mod in module_names:
+        avg_per_mod.append(np.average( np.asarray(df[mod].tolist()) ))
+    print(min(avg_per_mod))
+    print(max(avg_per_mod))
+    fig = px.bar(x=module_names, y=avg_per_mod, range_y=[min(avg_per_mod)-100, max(avg_per_mod)+100])
+
+    fig.update_xaxes(title_text="Module")
+    fig.update_yaxes(title_text="Avg mV")
+    # change colors
+    fig.update_layout(
+        plot_bgcolor=colors["background_plot"],
+        paper_bgcolor=colors["background_area"],
+        font_color=colors["text"]
+    )
+
+    return fig
+
+
 def create_headerdiv():
     header_text: str = '''
         # Dash and Markdown
@@ -247,8 +269,8 @@ if __name__ == "__main__":
     #fig1 = create_fig_express(df, module_names)
     #fig2 = create_fig_matplot(avg_module_values, module_names)
     fig = create_fig_graphobject(df, module_names)
-
-    create_app_layout(fig, df)
+    bar_fig = create_bar_fig(df, module_names)
+    create_app_layout(bar_fig, df)
 
 
     print("main running")
