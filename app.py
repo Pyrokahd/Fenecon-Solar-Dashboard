@@ -30,6 +30,8 @@ filename: str = "REP_fenecon_voltage_data_v5.csv"
 
 colors = {"background_plot": "#DDDDDD", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
 GLOBAL_GRAPH_MARGINS = {"l":80, "r":40, "t":10, "b":10}
+global_df = None  # global var for dataframe to be used in callbacks
+global_module_names = None  # global var for the module names to be used in callbacks to update plots
 
 def read_data_as_df(filename):
     df = pd.read_csv(
@@ -179,12 +181,10 @@ def create_fig_graphobject(df, module_names):
 
 def create_bar_fig(df, module_names):
     avg_per_mod = []
-    print("cghecvk")
-    print(module_names)
+
     for mod in module_names:
         avg_per_mod.append(np.average( np.asarray(df[mod].tolist()) ))
-    print(min(avg_per_mod))
-    print(max(avg_per_mod))
+
     fig = px.bar(x=module_names, y=avg_per_mod, range_y=[min(avg_per_mod)-100, max(avg_per_mod)+100])
 
     fig.update_xaxes(title_text="Module")
@@ -224,17 +224,15 @@ def create_settingsdiv(module_names):
     return html.Div([
 
         html.Label("Module Selection"),
-        html.Label("adasd asasdadghrghertg rege rg eagegeg erg sdkjgerg ag rtgaerga erga "),
+        html.Br(),
         dcc.Dropdown(
             id="module-dropdown",
             options=[{"label": y, "value": y} for y in module_names],
             className="dropdown",
-            style={"margin": "0px 50px 0px 0px"}
+            style={"margin": "0px 50px 0px 0px", "background-color": "green"}
         )
 
     ], id="settings_div", className="div_class")
-
-
 
 
 def create_app_layout(df, module_names):
@@ -266,21 +264,26 @@ def create_app_layout(df, module_names):
                         #marks={numd: date.strftime('%d/%m/%y') for numd, date in zip(numdate, df_time_as_days['Zeitstempel'].unique())},
                         marks={numd: {"label": date.strftime('%d/%m/%y'), "style": {"color":colors["text"]} } for numd, date in zip(numdate, df_time_as_days['Zeitstempel'].unique())},
                         #tooltip = {"placement": "bottom", "always_visible": False}
-                        updatemode='drag',
+                        #updatemode='drag',  # to update instantly while dragging, else while releasing
+                        step=1,  # only whole steps (whole day are relevant)
                         id="date_rangeslider")
         ], id="rangeslider_div", className="div_class"),
 
         html.Div([
+
             html.Div([
                 dcc.Graph(id="barfig", figure=bar_fig)
             ], id="barplot_div", className="div_class"),
             create_settingsdiv(module_names),
+
         ], id="setting_barplot_div", className="div_class")
 
 
     ], id="layout", className="div_class")
 
 
+# If possible, expensive initialization (like downloading or querying data) should be done
+# in the global scope of the app instead of within the callback functions.
 @app.callback(
     Output('date_rangeslider', 'marks'),
     [Input('date_rangeslider', 'value')],
@@ -294,16 +297,50 @@ def update_marks(vals, marks):
             marks[str(k)]['style']['color'] = colors["text_disabled"]  # not selected
     return marks
 
+@app.callback(
+    Output("linefig", "figure"),
+    Output('barfig', 'figure'),
+    Input("date_rangeslider", "value")
+)
+def update_line_figure(selected_year_range):
+    # year_range is a list with two numbers left and right value
+
+    # first get the timestamps as date (without time) as tempdf
+    tmp_df = global_df.copy()
+    tmp_df['Zeitstempel'] = tmp_df['Zeitstempel'].dt.date
+    numdate = [x for x in range(len(tmp_df['Zeitstempel'].unique()))]
+    # translate the numbers from the slider to the dates
+    from_val = tmp_df['Zeitstempel'].unique()[selected_year_range[0]]
+    to_val = tmp_df['Zeitstempel'].unique()[selected_year_range[1]]
+    from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
+    to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
+    to_val = to_val + pd.Timedelta("23:59:59")
+
+    # filter the original df (with datetime not date) to contain only data within the selected dates
+    mask = (global_df["Zeitstempel"] > from_val) & (global_df["Zeitstempel"] < to_val)
+    filtered_df = global_df.loc[mask]
+
+    # Create new figure return that figure
+    fig = create_fig_graphobject(filtered_df, global_module_names)
+    fig.update_layout(transition_duration=400)
+
+
+    # Update Avg Bar plot
+    barfig = create_bar_fig(filtered_df, global_module_names)
+    barfig.update_layout(transition_duration=400)
+
+    return fig, barfig
 
 if __name__ == "__main__":
     df = read_data_as_df(filename)
     cell_values, cell_names = get_list_of_cell_voltage_values(df)
     avg_module_values, module_names = get_list_of_avg_module_voltage_values(cell_values)
     df = add_avg_module_to_df(avg_module_values, module_names, df)
-    #fig1 = create_fig_express(df, module_names)
-    #fig2 = create_fig_matplot(avg_module_values, module_names)
 
-    create_app_layout(df, module_names)
+    global_df = df  # to have a global reference to use in callbacks
+    global_module_names = module_names
+
+    create_app_layout(global_df, module_names)
 
 
     print("main running")

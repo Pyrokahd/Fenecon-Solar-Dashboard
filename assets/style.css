@@ -1,9 +1,11 @@
 :root {
   --div_BG: #1d2c45;
+  --BG_2: #3f6d67;
   --black: #000000;
   --fontcolor: #cce7e8;
   --debug: #FF0000;
-  --slider: #2a6fde;
+  --controll_element: #2a6fde;
+  --border_color: #96dbfa;
 }
 
 /* global body or global div container */
@@ -19,6 +21,7 @@ body {
 .div_class {
     background-color: var(--div_BG);
 }
+
 
 /* HEADER */
 #header_div {
@@ -40,25 +43,6 @@ body {
     width: 100px;
 }
 
-/* Settings + bar plot orw */
-#setting_barplot_div{
-    display: flex;
-    flex-direction: row;
-    align-items: auto;
-    background-color: var(--div_BG);
-}
-#barplot_div{
-    background-color: blue;
-    flex: 1 1 0px;  /* flex-grow, flex-shrink and flex-basis */
-    align-self: auto;
-}
-#settings_div{
-    padding: 0px 5px 5px 15px; /*oben rechts unten links*/
-    margin: 10px 0px 0px 0px;
-    background-color: red;
-    flex: 1 1 0px;
-    align-self: stretch; /*to fill same height as the bar plot in same column*/
-}
 
 /* RANGESLIDER */
 #rangeslider_div {
@@ -73,22 +57,60 @@ body {
 }
 #date_rangeslider .rc-slider-track {
     /* slider(selector) bar color*/
-    background-color: var(--slider);
+    background-color: var(--controll_element);
 }
 #date_rangeslider .rc-slider-handle-1, #date_rangeslider .rc-slider-handle-2{
     /* Handle color*/
-    background-color: var(--slider);
-    border: solid 2px #96dbfa;
+    background-color: var(--controll_element);
+    border: solid 2px var(--border_color);
 }
 #date_rangeslider .rc-slider-dot{
     /* slider dots*/
     background-color: white;
-    border: solid 2px #96dbfa;
+    border: solid 2px var(--border_color);
 }
 #date_rangeslider .rc-slider-with-marks {
   /* Background behind Slider */
   /* background-color: red;  */
 }
 
+
+/* Settings + bar plot div */
+#setting_barplot_div{
+    display: flex;
+    flex-direction: row;
+    align-items: auto;
+    background-color: var(--div_BG);
+}
+#barplot_div{
+    background-color: blue;
+    flex: 1 1 0px;  /* flex-grow, flex-shrink and flex-basis */
+    align-self: auto;
+}
+#settings_div{
+    padding: 0px 5px 5px 15px; /*oben rechts unten links*/
+    margin: 10px 0px 0px 0px;
+    var(--div_BG);
+    flex: 1 1 0px;
+    align-self: stretch; /*to fill same height as the bar plot in same column*/
+}
+
 /* general markdown styling */
 a:link {color: #ddf9f9}
+
+
+/* selection bar */
+.Select-control {
+    /* color for selected menu/field */
+    background-color: var(--controll_element) !important;
+    border: solid 1px var(--border_color);
+  }
+.Select-menu-outer {
+    /* color for elements in open list */
+    background-color: var(--controll_element);
+
+}
+.Select-value-label {
+/* Text of selected text in selected field*/
+    color: var(--fontcolor) !important;
+}
