@@ -6,21 +6,28 @@
   --slider: #2a6fde;
 }
 
+/* global body or global div container */
 body {
     background-color: #000000;
 }
 
 #layout {
     border: 1px solid white;
+    color: var(--fontcolor);
 }
 
+.div_class {
+    background-color: var(--div_BG);
+}
+
+/* HEADER */
 #header_div {
     background-color: var(--div_BG);
     color: var(--fontcolor);
     padding-left: 10px;
     padding-right: 10px;
-    padding-top: 10px;
-    padding-bottom: 1px;
+    padding-top: 5px;
+    padding-bottom: 0px;
 
     display: flex;
     flex-direction: row;
@@ -29,19 +36,37 @@ body {
     gap: 0px 10px; /* row-gap column gap */
 }
 
-.div_class {
-    background-color: var(--div_BG);
-}
-
 #header_block_div {
     width: 100px;
 }
 
-#rangeslider_div {
-    margin-top: 15px;
+/* Settings + bar plot orw */
+#setting_barplot_div{
+    display: flex;
+    flex-direction: row;
+    align-items: auto;
+    background-color: var(--div_BG);
+}
+#barplot_div{
+    background-color: blue;
+    flex: 1 1 0px;  /* flex-grow, flex-shrink and flex-basis */
+    align-self: auto;
+}
+#settings_div{
+    padding: 0px 5px 5px 15px; /*oben rechts unten links*/
+    margin: 10px 0px 0px 0px;
+    background-color: red;
+    flex: 1 1 0px;
+    align-self: stretch; /*to fill same height as the bar plot in same column*/
 }
 
-
+/* RANGESLIDER */
+#rangeslider_div {
+    margin-top: 5px;
+    margin-left: 50px;
+    margin-right: 50px;
+    margin-bottom: 5px;
+}
 #date_rangeslider .rc-slider-rail{
     /* bar color */
     background-color: var(--fontcolor);
@@ -60,10 +85,10 @@ body {
     background-color: white;
     border: solid 2px #96dbfa;
 }
-
 #date_rangeslider .rc-slider-with-marks {
   /* Background behind Slider */
   /* background-color: red;  */
 }
 
+/* general markdown styling */
 a:link {color: #ddf9f9}

@@ -29,6 +29,7 @@ app = dash.Dash(__name__)  # default: http://127.0.0.1:8050
 filename: str = "REP_fenecon_voltage_data_v5.csv"
 
 colors = {"background_plot": "#DDDDDD", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
+GLOBAL_GRAPH_MARGINS = {"l":80, "r":40, "t":10, "b":10}
 
 def read_data_as_df(filename):
     df = pd.read_csv(
@@ -168,7 +169,9 @@ def create_fig_graphobject(df, module_names):
     fig.update_layout(
         plot_bgcolor=colors["background_plot"],
         paper_bgcolor=colors["background_area"],
-        font_color=colors["text"]
+        font_color=colors["text"],
+        margin=dict(l=GLOBAL_GRAPH_MARGINS["l"], r=GLOBAL_GRAPH_MARGINS["r"], t=GLOBAL_GRAPH_MARGINS["t"],
+                    b=GLOBAL_GRAPH_MARGINS["b"]),
     )
 
     return fig
@@ -190,8 +193,12 @@ def create_bar_fig(df, module_names):
     fig.update_layout(
         plot_bgcolor=colors["background_plot"],
         paper_bgcolor=colors["background_area"],
-        font_color=colors["text"]
+        font_color=colors["text"],
+        margin=dict(l=GLOBAL_GRAPH_MARGINS["l"], r=GLOBAL_GRAPH_MARGINS["r"], t=GLOBAL_GRAPH_MARGINS["t"],
+                    b=GLOBAL_GRAPH_MARGINS["b"]),
+        height=int(300)  # setting based on callback through default height? https://stackoverflow.com/questions/70315657/get-width-and-height-of-plotly-figure
     )
+
 
     return fig
 
@@ -213,7 +220,24 @@ def create_headerdiv():
     ], id="header_div", className="container")
 
 
-def create_app_layout(fig, df):
+def create_settingsdiv(module_names):
+    return html.Div([
+
+        html.Label("Module Selection"),
+        html.Label("adasd asasdadghrghertg rege rg eagegeg erg sdkjgerg ag rtgaerga erga "),
+        dcc.Dropdown(
+            id="module-dropdown",
+            options=[{"label": y, "value": y} for y in module_names],
+            className="dropdown",
+            style={"margin": "0px 50px 0px 0px"}
+        )
+
+    ], id="settings_div", className="div_class")
+
+
+
+
+def create_app_layout(df, module_names):
     """
     add html elements and figues to the dash app
     :param fig:
@@ -224,14 +248,17 @@ def create_app_layout(fig, df):
     # reduce time timestamp resolution to per day basis
     df_time_as_days = df.copy()
     df_time_as_days['Zeitstempel'] = df_time_as_days['Zeitstempel'].dt.date
-    # dates as numbers
+    # dates as numbers used for dateslider
     numdate = [x for x in range(len(df_time_as_days['Zeitstempel'].unique()))]
+
+    fig = create_fig_graphobject(df, module_names)
+    bar_fig = create_bar_fig(df, module_names)
 
     app.layout = html.Div([
         create_headerdiv(),
 
         html.Div([
-            dcc.Graph(id="fig1", figure=fig)
+            dcc.Graph(id="linefig", figure=fig)
         ], id="figure_div", className="div_class"),
 
         html.Div([
@@ -241,7 +268,14 @@ def create_app_layout(fig, df):
                         #tooltip = {"placement": "bottom", "always_visible": False}
                         updatemode='drag',
                         id="date_rangeslider")
-        ], id="rangeslider_div", className="div_class")
+        ], id="rangeslider_div", className="div_class"),
+
+        html.Div([
+            html.Div([
+                dcc.Graph(id="barfig", figure=bar_fig)
+            ], id="barplot_div", className="div_class"),
+            create_settingsdiv(module_names),
+        ], id="setting_barplot_div", className="div_class")
 
 
     ], id="layout", className="div_class")
@@ -268,9 +302,8 @@ if __name__ == "__main__":
     df = add_avg_module_to_df(avg_module_values, module_names, df)
     #fig1 = create_fig_express(df, module_names)
     #fig2 = create_fig_matplot(avg_module_values, module_names)
-    fig = create_fig_graphobject(df, module_names)
-    bar_fig = create_bar_fig(df, module_names)
-    create_app_layout(bar_fig, df)
+
+    create_app_layout(df, module_names)
 
 
     print("main running")
@@ -279,3 +312,5 @@ if __name__ == "__main__":
     # todo make perma loop and check if callbacks still work and update the server
 
 
+# Other
+# cool 3D graph example: https://plotly.com/python/custom-buttons/
