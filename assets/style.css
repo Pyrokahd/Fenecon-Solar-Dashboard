@@ -10,10 +10,21 @@
 
 /* general markdown styling */
 a:link {color: #ddf9f9}
-
 h2{
-margin: 20px 5px 20px 80px !important;
+    margin: 20px 5px 20px 80px !important;
 }
+input[type=checkbox]
+{
+  /* Double-sized Checkboxes: https://stackoverflow.com/questions/306924/can-i-change-the-checkbox-size-using-css */
+  -ms-transform: scale(1.5); /* IE */
+  -moz-transform: scale(1.5); /* FF */
+  -webkit-transform: scale(1.5); /* Safari and Chrome */
+  -o-transform: scale(1.5); /* Opera */
+  transform: scale(1.5);
+  padding: 10px;
+  margin-right: 5px;
+}
+
 
 /* global body or global div container */
 body {
@@ -85,7 +96,7 @@ body {
 #setting_barplot_div{
     display: flex;
     flex-direction: row;
-    align-items: flex-end;
+    align-items: flex-start;
     background-color: var(--div_BG);
 }
 #barplot_div{
@@ -95,10 +106,15 @@ body {
 }
 #settings_div{
     padding: 0px 5px 5px 15px; /*oben rechts unten links -- # top right bottom left (margin)*/
-    margin: 10px 0px 0px 0px;
+    margin: 0px 0px 0px 0px;
     var(--div_BG);
     flex: 1 1 0px;
     align-self: stretch; /*stretch to fill same height as the bar plot in same column  or --flex-end  */
+    display: flex;
+    flex-direction: column;
+    /*align-items: flex-start;*/
+    gap: 0px;
+
 }
 
 
@@ -118,6 +134,10 @@ body {
 }
 
 
+/* The div with the module selection and its label*/
+#mod_selection{
+    padding-bottom: 10px;
+}
 /* CELL PLOT DIVS */
 #cell_plots_div{
    display: flex;
@@ -126,12 +146,10 @@ body {
     background-color: var(--div_BG);
 }
 #cellline_div{
-    background-color: blue;
     flex: 2 1 0px;  /* flex-grow, flex-shrink and flex-basis */
-    align-self: auto;
+
 }
 #cellbar_div{
-    background-color: blue;
     flex: 1 1 0px;  /* flex-grow, flex-shrink and flex-basis */
-    align-self: auto;
+
 }

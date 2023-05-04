@@ -10,7 +10,7 @@ import plotly.express as px  # express plot
 from plotly.tools import mpl_to_plotly  # matplot
 import plotly.graph_objects as go  # graph objects  # https://plotly.com/python/graph-objects/
 
-from plotly.subplots import make_subplots # Make Subplots with go https://plotly.com/python/creating-and-updating-figures/
+from plotly.subplots import make_subplots  # Make Subplots with go https://plotly.com/python/creating-and-updating-figures/
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -18,21 +18,26 @@ import os
 import numpy as np
 import matplotlib.dates as mdates
 
+import time
+import threading
 # Typehint: https://docs.python.org/3/library/typing.html
 
-
-app = dash.Dash(__name__)  # default: http://127.0.0.1:8050
+# initial callback duplicates need to be prevented
+app = dash.Dash(__name__, prevent_initial_callbacks="initial_duplicate")  # default: http://127.0.0.1:8050
 # Dash automatically loads CSS files that are in the assets folder
-#assets_path = os.path.join(os.getcwd(), "assets")
-# app.css.append_css({"relative_package_path":css_path})
+
 
 filename: str = "REP_fenecon_voltage_data_v5.csv"
+timecolumn = 'Zeitstempel'
+colors = {"background_plot": "#DEDEDE", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
+GLOBAL_GRAPH_MARGINS = {"l":80, "r":30, "t":5, "b":10}
 
-colors = {"background_plot": "#DDDDDD", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
-GLOBAL_GRAPH_MARGINS = {"l":80, "r":40, "t":5, "b":10}
 global_df = None  # global var for dataframe to be used in callbacks
 global_module_names = None  # global var for the module names to be used in callbacks to update plots
-globa_cell_names = None  # global var for ehe column names for all cells
+globa_cell_names = None  # global var for the column names for all cells
+global_secondary_column_names = None  # global var for column names that are not modules or cells
+
+debug_run = True  # flask runs the main code twice when in debugging
 
 
 def read_data_as_df(filename):
@@ -41,7 +46,7 @@ def read_data_as_df(filename):
         os.path.join(os.path.join(os.getcwd(), "data"), filename), sep=";"
     )
     # convert time form string to timedate object
-    df['Zeitstempel'] = pd.to_datetime(df['Zeitstempel'],
+    df[timecolumn] = pd.to_datetime(df[timecolumn],
                                        format='%Y-%m-%d %H:%M:%S.%f')  # Year month day hour minute second microseconds
     return df
 
@@ -109,14 +114,13 @@ def add_avg_module_to_df(avg_module_values, module_names, df):
 
 
 def create_fig_matplot(avg_module_values, avg_labels) -> plt:
-
     # PLOT mV per Module
     # figsize defines width and height of plot
     px = 1 / plt.rcParams['figure.dpi']
 
     fig, ax = plt.subplots(figsize=(960*px, 540*px), facecolor='white')
     for i in range(len(avg_module_values)):
-        plt.plot(df["Zeitstempel"], avg_module_values[i], marker='',  # color=colors[i*14+6],
+        plt.plot(df[timecolumn], avg_module_values[i], marker='',  # color=colors[i*14+6],
                  linewidth=0.8, alpha=0.9, label=avg_labels[i], zorder=15 - i)
     #plt.title("Voltage per Module over time")
     leg = ax.legend(loc='upper right')
@@ -145,7 +149,7 @@ def create_fig_express(df, module_names):
 
 
     # Create Line plot
-    fig = px.line(df, x='Zeitstempel', y=module_names)
+    fig = px.line(df, x=timecolumn, y=module_names)
     # https://plotly.com/python/creating-and-updating-figures/#updating-traces
     fig.update_traces(line=dict(width=0.8))  # selector?
     fig.update_layout(legend_title_text="Modules")
@@ -155,28 +159,55 @@ def create_fig_express(df, module_names):
     return fig
 
 
-def create_fig_graphobject(df, module_names):
+def create_fig_graphobject(df, module_names, add_secondary_y: bool = False, secondary_col: str = "Ladezustand [%]"):
     # https://plotly.com/python/graph-objects/
     # https://plotly.com/python-api-reference/
-    # Todo add dual axis plot: https://plotly.com/python/multiple-axes/
-    fig = go.Figure()
+
+    # Create figure with secondary y-axis
+    if add_secondary_y:
+        fig = make_subplots(specs=[[{"secondary_y": True}]]) #, "r":-0.01}]])  # 1% weniger abstand zur legende
+    else:
+        fig = go.Figure()
+
+    # mV plot lines
     for name in module_names:
-        fig.add_trace(go.Scatter(x=df['Zeitstempel'], y=df[name], mode='lines',
-                                 showlegend=True, line=dict(width=0.8), name=name,
+        fig.add_trace(go.Scatter(x=df[timecolumn], y=df[name], mode='lines',
+                                 showlegend=True, line=dict(width=0.9), name=name,
                                  hovertemplate="%s<br>Date=%%{x}<br>mV=%%{y}<extra></extra>"%name
                                  ))
+    if add_secondary_y:
+        # handle too long names for legend
+        legend_name = secondary_col
+        if len(legend_name) > 15:
+            legend_name = legend_name.split(" ")[0]
+        if len(legend_name) > 15:
+            legend_name = "Secondary"
+
+        fig.add_trace(
+            go.Scatter(x=df[timecolumn], y=df[secondary_col], name=legend_name, mode="lines",
+                       line=dict(width=1.4, color="red", dash='dot'),
+                       hovertemplate="%s<br>Date=%%{x}<br>value=%%{y}<extra></extra>"%secondary_col),
+            secondary_y=True
+        )
+        fig.update_yaxes(title_text=secondary_col, secondary_y=True, color="red")#, tickfont_family="Arial Black")
+        fig.update_yaxes(title_text="mV", secondary_y=False)
+        #fig.update_traces(marker=dict(size=3, line=dict(width=0, color='black')))
+    else:
+        # secondary_y only exists in subplots
+        fig.update_yaxes(title_text="mV")
 
     fig.update_layout(legend_title_text="Modules")
     fig.update_xaxes(title_text="Date")
-    fig.update_yaxes(title_text="mV")
+    fig.update_layout(legend_x=1)
 
     # change colors
     fig.update_layout(
         plot_bgcolor=colors["background_plot"],
         paper_bgcolor=colors["background_area"],
         font_color=colors["text"],
-        margin=dict(l=GLOBAL_GRAPH_MARGINS["l"], r=GLOBAL_GRAPH_MARGINS["r"], t=GLOBAL_GRAPH_MARGINS["t"],
+        margin=dict(l=GLOBAL_GRAPH_MARGINS["l"], r=GLOBAL_GRAPH_MARGINS["r"]+100, t=GLOBAL_GRAPH_MARGINS["t"],
                     b=GLOBAL_GRAPH_MARGINS["b"]),
+        #title_text="Double Y Axis Example"
     )
 
     return fig
@@ -230,29 +261,53 @@ def create_module_selection_div(module_names):
         html.Br(),
         dcc.Dropdown(
             id="module-dropdown",
-            options=[{"label": y, "value": y} for y in module_names],
+            options=[{"label": y, "value": v} for y,v in zip(module_names, range(len(module_names)))],
+            value=0,
             className="dropdown",
             style={"margin": "0px 0px 0px 0px"}
         )
 
-    ], id="module_selection_div", className="div_class", style={"margin-left": f"{GLOBAL_GRAPH_MARGINS['l']}px", "flex": "1 1 0px"})
-        #style={'display': 'flex', 'flex-direction': 'column': "flex-start", "margin-left": "70px", "flex": "1 1 0px", "gap": "0px"})
+    ], id="module_selection_div", className="div_class",
+        style={"margin-left": f"{GLOBAL_GRAPH_MARGINS['l']}px", "flex": "1 1 0px"})
 
 
-def create_settingsdiv(module_names):
+def create_settingsdiv(secondary_column_names):
     return html.Div([
 
-        html.Label("Settings"),
-        html.Br()
+        html.H3("Settings:", id="settings_label"),
+        dcc.Checklist(options=["Show secondary y-axis"], id="secondary_y_checkbox",
+                      style={}),
+        html.Label("Select secondary value", style={"padding-top":"10px"}),
+        dcc.Dropdown(
+            id="secondary_y_dropdown",
+            options=[{"label": y, "value": y} for y in secondary_column_names],
+            value="Ladezustand [%]",
+            className="dropdown",
+            style={"padding-right":f"{GLOBAL_GRAPH_MARGINS['r']}px"}
+        )
+
+        #html.Br()
 
     ], id="settings_div", className="div_class")
 
 
-def create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names):
-    module_id = 0
+def create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names, module_id: int = 0):
+    """
+
+    :param df:
+    :type df:
+    :param module_names:  Only to be used as label for the legend of the cell plot.
+    :type module_names:
+    :param all_cell_names:
+    :type all_cell_names:
+    :param module_id:
+    :type module_id:
+    :return:
+    :rtype:
+    """
     # Every module has 14 cells
     module_cell_values_names = all_cell_names[0 + (module_id * 14):14 + (module_id * 14)]
-    shortened_cell_names = [i.split()[-1][:-3]+" "+i.split()[-1][-3:] for i in module_cell_values_names]
+    shortened_cell_names = [i.split()[-1][:-3]+"_"+i.split()[-1][-3:] for i in module_cell_values_names]
 
     # Create line figure for cell mV
     fig = go.Figure()
@@ -260,14 +315,13 @@ def create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names):
     for name in module_cell_values_names:
         i+=1
         short_name = shortened_cell_names[i]
-        fig.add_trace(go.Scatter(x=df['Zeitstempel'], y=df[name], mode='lines',
+        fig.add_trace(go.Scatter(x=df[timecolumn], y=df[name], mode='lines',
                                  showlegend=True, line=dict(width=0.8), name=short_name,
                                  hovertemplate="%s<br>Date=%%{x}<br>mV=%%{y}<extra></extra>" % short_name
                                  ))
 
-    fig.update_layout(legend_title_text=f"Cells: {module_names[module_id]}")
     fig.update_xaxes(title_text="Date")
-    fig.update_yaxes(title_text="Avg mV")
+    fig.update_yaxes(title_text="mV")
     # change colors
     fig.update_layout(
         plot_bgcolor=colors["background_plot"],
@@ -275,8 +329,12 @@ def create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names):
         font_color=colors["text"],
         margin=dict(l=GLOBAL_GRAPH_MARGINS["l"], r=GLOBAL_GRAPH_MARGINS["r"], t=GLOBAL_GRAPH_MARGINS["t"],
                     b=GLOBAL_GRAPH_MARGINS["b"]),
-        height=int(350)
+        height=int(360),
+        # TODO This seems to be a bug in dash that the legend_title doesnt update on the callback
+        #legend_title_text=str(module_names[module_id]),
+        #title_text="mV per cell in "+str(module_names[module_id])
     )
+    #fig.update_layout(showlegend=True)
 
     # Create bar plot for avg cell mV
     avg_per_cell = []
@@ -296,7 +354,7 @@ def create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names):
         font_color=colors["text"],
         margin=dict(l=GLOBAL_GRAPH_MARGINS["l"], r=GLOBAL_GRAPH_MARGINS["r"], t=GLOBAL_GRAPH_MARGINS["t"],
                     b=GLOBAL_GRAPH_MARGINS["b"]),
-        height=int(350)
+        height=int(360)
     )
 
     return fig, fig_bar
@@ -311,7 +369,8 @@ def create_module_cell_plots_div(df, module_names, all_cell_names):
 
         #Settings div
         html.Div([
-        create_module_selection_div(module_names),
+            create_module_selection_div(module_names),
+
             html.Div([
                 # empty div next to module selection for spacing
             ], className="div_class", style={"flex": "1 1 0px"})
@@ -332,7 +391,25 @@ def create_module_cell_plots_div(df, module_names, all_cell_names):
     ], id="lower_area_div", className="div_class", style={'display': 'flex', 'flex-direction': 'column'})
 
 
-def create_app_layout(df, module_names, all_cell_names):
+def create_correlation_div(_df):
+    """
+    Example for scatter plot to check for correlation based on delta values from i.e. energy given
+    :param _df:
+    :type _df:
+    :return:
+    :rtype:
+    """
+    df = _df.copy()
+    df["Netzeinspeisung delta [Wh]"] = df["Netzeinspeisung Energie [Wh]"].diff().fillna(0)
+    df["Netzbezug delta [Wh]"] = df["Netzbezug Energie [Wh]"].diff().fillna(0)
+
+    fig = px.scatter(df, x="Netzbezug delta [Wh]", y="Netzeinspeisung delta [Wh]")
+    return html.Div([
+        dcc.Graph(id="correlation_div", figure=fig)
+    ], id="correlation_row_div", className="div_class", style={'display': 'flex', 'flex-direction': 'row'})
+
+
+def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
     """
     add html elements and figues to the dash app
     :param fig:
@@ -342,9 +419,9 @@ def create_app_layout(df, module_names, all_cell_names):
     """
     # reduce time timestamp resolution to per day basis
     df_time_as_days = df.copy()
-    df_time_as_days['Zeitstempel'] = df_time_as_days['Zeitstempel'].dt.date
+    df_time_as_days[timecolumn] = df_time_as_days[timecolumn].dt.date
     # dates as numbers used for dateslider
-    numdate = [x for x in range(len(df_time_as_days['Zeitstempel'].unique()))]
+    numdate = [x for x in range(len(df_time_as_days[timecolumn].unique()))]
 
     fig = create_fig_graphobject(df, module_names)
     bar_fig = create_bar_fig(df, module_names)
@@ -360,8 +437,8 @@ def create_app_layout(df, module_names, all_cell_names):
 
         html.Div([
             dcc.RangeSlider(min=numdate[0], max=numdate[-1], value=[numdate[-0], numdate[-1]],
-                        #marks={numd: date.strftime('%d/%m/%y') for numd, date in zip(numdate, df_time_as_days['Zeitstempel'].unique())},
-                        marks={numd: {"label": date.strftime('%d/%m/%y'), "style": {"color":colors["text"]} } for numd, date in zip(numdate, df_time_as_days['Zeitstempel'].unique())},
+                        #marks={numd: date.strftime('%d/%m/%y') for numd, date in zip(numdate, df_time_as_days[timecolumn].unique())},
+                        marks={numd: {"label": date.strftime('%d/%m/%y'), "style": {"color":colors["text"]} } for numd, date in zip(numdate, df_time_as_days[timecolumn].unique())},
                         #tooltip = {"placement": "bottom", "always_visible": False}
                         #updatemode='drag',  # to update instantly while dragging, else while releasing
                         step=1,  # only whole steps (whole day are relevant)
@@ -373,11 +450,13 @@ def create_app_layout(df, module_names, all_cell_names):
             html.Div([
                 dcc.Graph(id="barfig", figure=bar_fig)
             ], id="barplot_div", className="div_class"),
-            create_settingsdiv(module_names),
+            create_settingsdiv(secondary_column_names),
 
         ], id="setting_barplot_div", className="div_class"),
 
-        create_module_cell_plots_div(df, module_names, all_cell_names)
+        create_module_cell_plots_div(df, module_names, all_cell_names),
+
+        #create_correlation_div(df),
 
 
     ], id="layout", className="div_class")
@@ -390,7 +469,7 @@ def create_app_layout(df, module_names, all_cell_names):
     [Input('date_rangeslider', 'value')],
     [State('date_rangeslider', 'marks')]
 )
-def update_marks(vals, marks):
+def update_rangeslider_marks(vals, marks):
     for k in marks:
         if int(k) >= vals[0] and int(k) <= vals[1]:
             marks[str(k)]['style']['color'] = colors["text"]  # selected
@@ -398,58 +477,174 @@ def update_marks(vals, marks):
             marks[str(k)]['style']['color'] = colors["text_disabled"]  # not selected
     return marks
 
+
+# Another possibility instead of duplicate Outputs: Updating the Same Output From Different Inputs
+# https://dash.plotly.com/duplicate-callback-outputs
 @app.callback(
     Output("linefig", "figure"),
     Output('barfig', 'figure'),
-    Input("date_rangeslider", "value")
+    Output("cell_line_fig", "figure"),
+    Output("cell_bar_fig", "figure"),
+    Input("date_rangeslider", "value"),
+    State("module-dropdown", "value"),
+    State("secondary_y_checkbox", "value"),
+    State("secondary_y_dropdown", "value"),
+    prevent_initial_call=True
 )
-def update_line_figure(selected_year_range):
+def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdown_value):
     # year_range is a list with two numbers left and right value
-
     # first get the timestamps as date (without time) as tempdf
-    tmp_df = global_df.copy()
-    tmp_df['Zeitstempel'] = tmp_df['Zeitstempel'].dt.date
-    numdate = [x for x in range(len(tmp_df['Zeitstempel'].unique()))]
-    # translate the numbers from the slider to the dates
-    from_val = tmp_df['Zeitstempel'].unique()[selected_year_range[0]]
-    to_val = tmp_df['Zeitstempel'].unique()[selected_year_range[1]]
+    tmp_df = global_df.copy()  # need a copy because the date is changed but we don't want to modify the original data
+    tmp_df[timecolumn] = tmp_df[timecolumn].dt.date
+
+    # translate the numbers from the slider to the dates then timedates
+    from_val = tmp_df[timecolumn].unique()[selected_year_range[0]]
+    to_val = tmp_df[timecolumn].unique()[selected_year_range[1]]
     from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
     to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
     to_val = to_val + pd.Timedelta("23:59:59")
 
     # filter the original df (with datetime not date) to contain only data within the selected dates
-    mask = (global_df["Zeitstempel"] > from_val) & (global_df["Zeitstempel"] < to_val)
+    mask = (global_df[timecolumn] > from_val) & (global_df[timecolumn] < to_val)
     filtered_df = global_df.loc[mask]
 
-    # Create new figure return that figure
-    fig = create_fig_graphobject(filtered_df, global_module_names)
-    fig.update_layout(transition_duration=400)
+    #
+    show_secondary_axis = False
+    if checkbox:
+        show_secondary_axis = True
 
+    # Create new figure return that figure
+    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value)
+    #fig.update_layout(legend_title_text="blabla")
+    fig.update_layout(transition_duration=200)
 
     # Update Avg Bar plot
     barfig = create_bar_fig(filtered_df, global_module_names)
-    barfig.update_layout(transition_duration=400)
+    barfig.update_layout(transition_duration=200)
 
-    return fig, barfig
+    # Update Cell line and bar figures
+    cell_line, cell_bar = create_mV_plots_per_cell_for_one_module(filtered_df, global_module_names, globa_cell_names, sel_module_id)
+    cell_line.update_layout(transition_duration=200)
+    cell_bar.update_layout(transition_duration=200)
 
+    return fig, barfig, cell_line, cell_bar
+
+
+@app.callback(
+    Output("cell_line_fig", "figure", allow_duplicate=True),
+    Output("cell_bar_fig", "figure", allow_duplicate=True),
+    Input("module-dropdown", "value"),
+    State("date_rangeslider", "value"),
+    prevent_initial_call=True
+)
+def update_cell_figures(sel_module_id, selected_year_range):
+    # year_range is a list with two numbers left and right value
+    # first get the timestamps as date (without time) as tempdf
+    tmp_df = global_df.copy()  # need a copy because the date is changed but we don't want to modify the original data
+    tmp_df[timecolumn] = tmp_df[timecolumn].dt.date
+
+    # translate the numbers from the slider to the dates then timedates
+    from_val = tmp_df[timecolumn].unique()[selected_year_range[0]]
+    to_val = tmp_df[timecolumn].unique()[selected_year_range[1]]
+    from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
+    to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
+    to_val = to_val + pd.Timedelta("23:59:59")
+
+    # filter the original df (with datetime not date) to contain only data within the selected dates
+    mask = (global_df[timecolumn] > from_val) & (global_df[timecolumn] < to_val)
+    filtered_df = global_df.loc[mask]
+
+    # Update Cell line and bar figures
+    cell_line, cell_bar = create_mV_plots_per_cell_for_one_module(filtered_df, global_module_names, globa_cell_names,
+                                                                  sel_module_id)
+    cell_line.update_layout(transition_duration=200)
+    cell_bar.update_layout(transition_duration=200)
+
+    return cell_line, cell_bar
+
+
+@app.callback(
+    Output("linefig", "figure", allow_duplicate=True),
+    Input("secondary_y_checkbox", "value"),
+    Input("secondary_y_dropdown", "value"),
+    State("date_rangeslider", "value"),
+    prevent_initial_call=True
+)
+def update_secondary_axis_in_lineplot(checkbox, dropdown_value, selected_year_range):
+    # year_range is a list with two numbers left and right value
+    # first get the timestamps as date (without time) as tempdf
+    tmp_df = global_df.copy()  # need a copy because the date is changed but we don't want to modify the original data
+    tmp_df[timecolumn] = tmp_df[timecolumn].dt.date
+
+    # translate the numbers from the slider to the dates then timedates
+    from_val = tmp_df[timecolumn].unique()[selected_year_range[0]]
+    to_val = tmp_df[timecolumn].unique()[selected_year_range[1]]
+    from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
+    to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
+    to_val = to_val + pd.Timedelta("23:59:59")
+
+    # filter the original df (with datetime not date) to contain only data within the selected dates
+    mask = (global_df[timecolumn] > from_val) & (global_df[timecolumn] < to_val)
+    filtered_df = global_df.loc[mask]
+
+    show_secondary_axis = False
+    if checkbox:
+        show_secondary_axis = True
+
+    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value)
+    return fig
+
+# data logging Daemon Threads
+def thread_function():
+    while True:
+        print("thread 1 running...")
+        time.sleep(4)
+
+def thread_function2():
+    #while True:
+    print("thread 2 running...")
+    time.sleep(6)
+
+#  __main__ means the script is executed directly and not imported
 if __name__ == "__main__":
+    # NOTE!: Flask in debug runs the script twice.
+    # so creating data happens twice
+    """
+    # collection thread (doesnt work like that in debug mode as its run twice
+    x = threading.Thread(target=thread_function, args=(), daemon=True)
+    x2 = threading.Thread(target=thread_function2, args=(), daemon=True)
+    x.start()
+    x2.start()
+    x.join()
+    print("thead1 done")
+    x2.join()
+    print("thead2 done")
+    """
+
     df = read_data_as_df(filename)
     cell_values, cell_names = get_list_of_cell_voltage_values(df)
     avg_module_values, module_names = get_list_of_avg_module_voltage_values(cell_values)
     df = add_avg_module_to_df(avg_module_values, module_names, df)
 
+    global_secondary_column_names = [x for x in df.columns if x not in cell_names+module_names+[timecolumn] and x[:6] != "Module"]
     global_df = df  # to have a global reference to use in callbacks
     global_module_names = module_names
     globa_cell_names = cell_names
 
-    create_app_layout(global_df, module_names, cell_names)
+    create_app_layout(global_df, module_names, cell_names, global_secondary_column_names)
 
+    # Correlation test
+    #print(np.corrcoef(global_df["Ladezustand [%]"].tolist(), global_df["Netzbezug Energie [Wh]"].diff().fillna(0).tolist()))
+    #print(np.corrcoef(global_df["Ladezustand [%]"].tolist(), global_df["Netzeinspeisung Energie [Wh]"].diff().fillna(0).tolist()))
 
     print("main running")
-    app.run_server(debug=True)
+    # to access ip adress of server where the app is running in the LAN, host='0.0.0.0'
+    # https://stackoverflow.com/questions/61678129/how-to-access-a-plotly-dash-app-server-via-lan
+    app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
 
     # todo make perma loop and check if callbacks still work and update the server
 
 
 # Other
 # cool 3D graph example: https://plotly.com/python/custom-buttons/
+# Change legend pos on callback: https://plotly.com/python/legend/?_ga=2.214419600.642079767.1682617466-1272301599.1682617466#legend-position
