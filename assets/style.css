@@ -8,13 +8,19 @@
   --border_color: #96dbfa;
 }
 
+/* general markdown styling */
+a:link {color: #ddf9f9}
+
+h2{
+margin: 20px 5px 20px 80px !important;
+}
+
 /* global body or global div container */
 body {
     background-color: #000000;
 }
-
 #layout {
-    border: 1px solid white;
+    /*border: 1px solid white;*/
     color: var(--fontcolor);
 }
 
@@ -47,8 +53,8 @@ body {
 /* RANGESLIDER */
 #rangeslider_div {
     margin-top: 5px;
-    margin-left: 50px;
-    margin-right: 50px;
+    margin-left: 55px;
+    margin-right: 55px;
     margin-bottom: 5px;
 }
 #date_rangeslider .rc-slider-rail{
@@ -79,7 +85,7 @@ body {
 #setting_barplot_div{
     display: flex;
     flex-direction: row;
-    align-items: auto;
+    align-items: flex-end;
     background-color: var(--div_BG);
 }
 #barplot_div{
@@ -88,18 +94,15 @@ body {
     align-self: auto;
 }
 #settings_div{
-    padding: 0px 5px 5px 15px; /*oben rechts unten links*/
+    padding: 0px 5px 5px 15px; /*oben rechts unten links -- # top right bottom left (margin)*/
     margin: 10px 0px 0px 0px;
     var(--div_BG);
     flex: 1 1 0px;
-    align-self: stretch; /*to fill same height as the bar plot in same column*/
+    align-self: stretch; /*stretch to fill same height as the bar plot in same column  or --flex-end  */
 }
 
-/* general markdown styling */
-a:link {color: #ddf9f9}
 
-
-/* selection bar */
+/* selection bar styling */
 .Select-control {
     /* color for selected menu/field */
     background-color: var(--controll_element) !important;
@@ -108,9 +111,27 @@ a:link {color: #ddf9f9}
 .Select-menu-outer {
     /* color for elements in open list */
     background-color: var(--controll_element);
-
 }
 .Select-value-label {
 /* Text of selected text in selected field*/
     color: var(--fontcolor) !important;
+}
+
+
+/* CELL PLOT DIVS */
+#cell_plots_div{
+   display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    background-color: var(--div_BG);
+}
+#cellline_div{
+    background-color: blue;
+    flex: 2 1 0px;  /* flex-grow, flex-shrink and flex-basis */
+    align-self: auto;
+}
+#cellbar_div{
+    background-color: blue;
+    flex: 1 1 0px;  /* flex-grow, flex-shrink and flex-basis */
+    align-self: auto;
 }

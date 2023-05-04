@@ -29,9 +29,11 @@ app = dash.Dash(__name__)  # default: http://127.0.0.1:8050
 filename: str = "REP_fenecon_voltage_data_v5.csv"
 
 colors = {"background_plot": "#DDDDDD", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
-GLOBAL_GRAPH_MARGINS = {"l":80, "r":40, "t":10, "b":10}
+GLOBAL_GRAPH_MARGINS = {"l":80, "r":40, "t":5, "b":10}
 global_df = None  # global var for dataframe to be used in callbacks
 global_module_names = None  # global var for the module names to be used in callbacks to update plots
+globa_cell_names = None  # global var for ehe column names for all cells
+
 
 def read_data_as_df(filename):
     df = pd.read_csv(
@@ -156,7 +158,7 @@ def create_fig_express(df, module_names):
 def create_fig_graphobject(df, module_names):
     # https://plotly.com/python/graph-objects/
     # https://plotly.com/python-api-reference/
-
+    # Todo add dual axis plot: https://plotly.com/python/multiple-axes/
     fig = go.Figure()
     for name in module_names:
         fig.add_trace(go.Scatter(x=df['Zeitstempel'], y=df[name], mode='lines',
@@ -166,7 +168,8 @@ def create_fig_graphobject(df, module_names):
 
     fig.update_layout(legend_title_text="Modules")
     fig.update_xaxes(title_text="Date")
-    fig.update_yaxes(title_text="Avg mV")
+    fig.update_yaxes(title_text="mV")
+
     # change colors
     fig.update_layout(
         plot_bgcolor=colors["background_plot"],
@@ -220,7 +223,7 @@ def create_headerdiv():
     ], id="header_div", className="container")
 
 
-def create_settingsdiv(module_names):
+def create_module_selection_div(module_names):
     return html.Div([
 
         html.Label("Module Selection"),
@@ -229,13 +232,107 @@ def create_settingsdiv(module_names):
             id="module-dropdown",
             options=[{"label": y, "value": y} for y in module_names],
             className="dropdown",
-            style={"margin": "0px 50px 0px 0px", "background-color": "green"}
+            style={"margin": "0px 0px 0px 0px"}
         )
+
+    ], id="module_selection_div", className="div_class", style={"margin-left": f"{GLOBAL_GRAPH_MARGINS['l']}px", "flex": "1 1 0px"})
+        #style={'display': 'flex', 'flex-direction': 'column': "flex-start", "margin-left": "70px", "flex": "1 1 0px", "gap": "0px"})
+
+
+def create_settingsdiv(module_names):
+    return html.Div([
+
+        html.Label("Settings"),
+        html.Br()
 
     ], id="settings_div", className="div_class")
 
 
-def create_app_layout(df, module_names):
+def create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names):
+    module_id = 0
+    # Every module has 14 cells
+    module_cell_values_names = all_cell_names[0 + (module_id * 14):14 + (module_id * 14)]
+    shortened_cell_names = [i.split()[-1][:-3]+" "+i.split()[-1][-3:] for i in module_cell_values_names]
+
+    # Create line figure for cell mV
+    fig = go.Figure()
+    i = -1
+    for name in module_cell_values_names:
+        i+=1
+        short_name = shortened_cell_names[i]
+        fig.add_trace(go.Scatter(x=df['Zeitstempel'], y=df[name], mode='lines',
+                                 showlegend=True, line=dict(width=0.8), name=short_name,
+                                 hovertemplate="%s<br>Date=%%{x}<br>mV=%%{y}<extra></extra>" % short_name
+                                 ))
+
+    fig.update_layout(legend_title_text=f"Cells: {module_names[module_id]}")
+    fig.update_xaxes(title_text="Date")
+    fig.update_yaxes(title_text="Avg mV")
+    # change colors
+    fig.update_layout(
+        plot_bgcolor=colors["background_plot"],
+        paper_bgcolor=colors["background_area"],
+        font_color=colors["text"],
+        margin=dict(l=GLOBAL_GRAPH_MARGINS["l"], r=GLOBAL_GRAPH_MARGINS["r"], t=GLOBAL_GRAPH_MARGINS["t"],
+                    b=GLOBAL_GRAPH_MARGINS["b"]),
+        height=int(350)
+    )
+
+    # Create bar plot for avg cell mV
+    avg_per_cell = []
+    for cell in module_cell_values_names:
+        avg_per_cell.append(np.average(np.asarray(df[cell].tolist())))
+
+    # create bar figure with shortened cell names
+    fig_bar = px.bar(x=shortened_cell_names,
+                     y=avg_per_cell, range_y=[min(avg_per_cell) - 50, max(avg_per_cell) + 50])
+
+    fig_bar.update_xaxes(title_text="Cell")
+    fig_bar.update_yaxes(title_text="Avg mV")
+    # change colors
+    fig_bar.update_layout(
+        plot_bgcolor=colors["background_plot"],
+        paper_bgcolor=colors["background_area"],
+        font_color=colors["text"],
+        margin=dict(l=GLOBAL_GRAPH_MARGINS["l"], r=GLOBAL_GRAPH_MARGINS["r"], t=GLOBAL_GRAPH_MARGINS["t"],
+                    b=GLOBAL_GRAPH_MARGINS["b"]),
+        height=int(350)
+    )
+
+    return fig, fig_bar
+
+
+def create_module_cell_plots_div(df, module_names, all_cell_names):
+    fig1, fig2 = create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names)
+
+    return html.Div([
+        # top right bottom left (margin)
+        html.H2("Voltage Values for the cells within the selected module:", style={"margin":f"50px 5px 20px {GLOBAL_GRAPH_MARGINS['l']}px"}),
+
+        #Settings div
+        html.Div([
+        create_module_selection_div(module_names),
+            html.Div([
+                # empty div next to module selection for spacing
+            ], className="div_class", style={"flex": "1 1 0px"})
+        ], id="mod_selection", className="div_class", style={'display': 'flex', 'flex-direction': 'row'}),
+
+        # Row containing both graphs
+        html.Div([
+            html.Div([
+                dcc.Graph(id="cell_line_fig", figure=fig1)
+            ], id="cellline_div", className="div_class"),
+
+            html.Div([
+                dcc.Graph(id="cell_bar_fig", figure=fig2)
+            ], id="cellbar_div", className="div_class")
+
+        ], id="cell_plots_div", className="div_class")
+
+    ], id="lower_area_div", className="div_class", style={'display': 'flex', 'flex-direction': 'column'})
+
+
+def create_app_layout(df, module_names, all_cell_names):
     """
     add html elements and figues to the dash app
     :param fig:
@@ -256,6 +353,8 @@ def create_app_layout(df, module_names):
         create_headerdiv(),
 
         html.Div([
+            html.H2("The mV value per module as average over its cells:",
+                    style={"margin": f"50px 5px 20px {GLOBAL_GRAPH_MARGINS['l']}px"}),
             dcc.Graph(id="linefig", figure=fig)
         ], id="figure_div", className="div_class"),
 
@@ -276,7 +375,9 @@ def create_app_layout(df, module_names):
             ], id="barplot_div", className="div_class"),
             create_settingsdiv(module_names),
 
-        ], id="setting_barplot_div", className="div_class")
+        ], id="setting_barplot_div", className="div_class"),
+
+        create_module_cell_plots_div(df, module_names, all_cell_names)
 
 
     ], id="layout", className="div_class")
@@ -339,8 +440,9 @@ if __name__ == "__main__":
 
     global_df = df  # to have a global reference to use in callbacks
     global_module_names = module_names
+    globa_cell_names = cell_names
 
-    create_app_layout(global_df, module_names)
+    create_app_layout(global_df, module_names, cell_names)
 
 
     print("main running")
