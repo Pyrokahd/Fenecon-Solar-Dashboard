@@ -1,6 +1,6 @@
 # Fenecon Dashboard
 # Fenecon data logger
-
+# todo remove pyorbital.orbital from requirements list as soon as its created
 import dash
 from dash import dcc  # https://dash.plotly.com/dash-core-components
 from dash import html  # https://dash.plotly.com/dash-html-components
@@ -642,8 +642,13 @@ if __name__ == "__main__":
     # https://stackoverflow.com/questions/61678129/how-to-access-a-plotly-dash-app-server-via-lan
     app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
 
-    # todo make perma loop and check if callbacks still work and update the server
+    # todo make intervals to read new CSV data? https://dash.plotly.com/live-updates#the-dcc.interval-component
+    # https://dash.plotly.com/app-lifecycle
 
+    # TODO deployment as local server:
+    # https://community.plotly.com/t/how-to-deploy-dash-app-internally-in-local-network/61312/2   # question
+    # https://chrisvoncsefalvay.com/2019/08/28/deploying-dash-on-amazon-ecs/  # similar tutorial (but for amazon)
+    # https://github.com/vsisl/Covid19_cz_districts  # example project
 
 # Other
 # cool 3D graph example: https://plotly.com/python/custom-buttons/
