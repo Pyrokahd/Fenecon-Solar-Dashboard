@@ -598,6 +598,7 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, selected_year_ra
 def thread_function():
     while True:
         print("thread 1 running...")
+        print("------------------------")
         time.sleep(4)
 
 def thread_function2():
@@ -609,11 +610,12 @@ def thread_function2():
 if __name__ == "__main__":
     # NOTE!: Flask in debug runs the script twice.
     # so creating data happens twice
-    """
+
     # collection thread (doesnt work like that in debug mode as its run twice
     x = threading.Thread(target=thread_function, args=(), daemon=True)
-    x2 = threading.Thread(target=thread_function2, args=(), daemon=True)
     x.start()
+    """
+    x2 = threading.Thread(target=thread_function2, args=(), daemon=True)
     x2.start()
     x.join()
     print("thead1 done")
@@ -641,6 +643,7 @@ if __name__ == "__main__":
     # to access ip adress of server where the app is running in the LAN, host='0.0.0.0'
     # https://stackoverflow.com/questions/61678129/how-to-access-a-plotly-dash-app-server-via-lan
     app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
+    #app.run_server(debug=False, port=8050, dev_tools_hot_reload=False, host="0.0.0.0")
 
     # todo make intervals to read new CSV data? https://dash.plotly.com/live-updates#the-dcc.interval-component
     # https://dash.plotly.com/app-lifecycle
@@ -649,6 +652,10 @@ if __name__ == "__main__":
     # https://community.plotly.com/t/how-to-deploy-dash-app-internally-in-local-network/61312/2   # question
     # https://chrisvoncsefalvay.com/2019/08/28/deploying-dash-on-amazon-ecs/  # similar tutorial (but for amazon)
     # https://github.com/vsisl/Covid19_cz_districts  # example project
+
+    # Todo include data collection script within this app
+
+    # Todo config file to change urls?
 
 # Other
 # cool 3D graph example: https://plotly.com/python/custom-buttons/
