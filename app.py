@@ -1,6 +1,4 @@
-# Fenecon Dashboard
-# Fenecon data logger
-# todo remove pyorbital.orbital from requirements list as soon as its created
+
 import dash
 from dash import dcc  # https://dash.plotly.com/dash-core-components
 from dash import html  # https://dash.plotly.com/dash-html-components
@@ -28,7 +26,7 @@ app = dash.Dash(__name__, prevent_initial_callbacks="initial_duplicate")  # defa
 
 
 filename: str = "REP_fenecon_voltage_data_v5.csv"
-timecolumn = 'Zeitstempel'
+timecolumn = 'Zeitstempel'  # x-axis in most plots
 colors = {"background_plot": "#DEDEDE", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
 GLOBAL_GRAPH_MARGINS = {"l":80, "r":30, "t":5, "b":10}
 
@@ -159,7 +157,7 @@ def create_fig_express(df, module_names):
     return fig
 
 
-def create_fig_graphobject(df, module_names, add_secondary_y: bool = False, secondary_col: str = "Ladezustand [%]"):
+def create_fig_graphobject(df, module_names, add_secondary_y: bool = False, secondary_col: str = "Ladezustand [%]", use_delta=False):
     # https://plotly.com/python/graph-objects/
     # https://plotly.com/python-api-reference/
 
@@ -183,8 +181,13 @@ def create_fig_graphobject(df, module_names, add_secondary_y: bool = False, seco
         if len(legend_name) > 15:
             legend_name = "Secondary"
 
+        if use_delta:
+            y_axis = df[secondary_col].diff().fillna(0)
+        else:
+            y_axis = df[secondary_col]
+
         fig.add_trace(
-            go.Scatter(x=df[timecolumn], y=df[secondary_col], name=legend_name, mode="lines",
+            go.Scatter(x=df[timecolumn], y=y_axis, name=legend_name, mode="lines",
                        line=dict(width=1.4, color="red", dash='dot'),
                        hovertemplate="%s<br>Date=%%{x}<br>value=%%{y}<extra></extra>"%secondary_col),
             secondary_y=True
@@ -239,17 +242,15 @@ def create_bar_fig(df, module_names):
 
 def create_headerdiv():
     header_text: str = '''
-        # Dash and Markdown
+        # Fenecon Solar Panel Dashboard
 
-        Dash apps can be written in Markdown.
-        Dash uses the [CommonMark](http://commonmark.org/)
-        specification of Markdown.
-        Check out their [60 Second Markdown Tutorial](http://commonmark.org/help/)
-        if this is your first introduction to Markdown!
+        This Dashboard primarly shows the voltage values for every battery module to see if they behave the same.
+        Every module has 14 cells. Additional information can be included in the main graph as secondary y axis,
+        for example the battery loading level. This is done in the "Setting" section.
         '''
 
     return html.Div([
-        html.Img(src=os.path.join("assets", "driller.PNG")),
+        html.Img(src=os.path.join("assets", "driller.PNG"), style={"width":"100px","height":"100px"}),
         dcc.Markdown(children=header_text)
     ], id="header_div", className="container")
 
@@ -275,8 +276,10 @@ def create_settingsdiv(secondary_column_names):
     return html.Div([
 
         html.H3("Settings:", id="settings_label"),
-        dcc.Checklist(options=["Show secondary y-axis"], id="secondary_y_checkbox",
+
+        dcc.Checklist(options=["Show secondary y-axis", "Use delta value"], id="secondary_y_checkbox",
                       style={}),
+
         html.Label("Select secondary value", style={"padding-top":"10px"}),
         dcc.Dropdown(
             id="secondary_y_dropdown",
@@ -510,11 +513,14 @@ def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdo
 
     #
     show_secondary_axis = False
-    if checkbox:
+    use_delta = False
+    if 'Show secondary y-axis' in checkbox:
         show_secondary_axis = True
+    if 'Use delta value' in checkbox:
+        use_delta = True
 
     # Create new figure return that figure
-    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value)
+    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value, use_delta)
     #fig.update_layout(legend_title_text="blabla")
     fig.update_layout(transition_duration=200)
 
@@ -588,10 +594,13 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, selected_year_ra
     filtered_df = global_df.loc[mask]
 
     show_secondary_axis = False
-    if checkbox:
+    use_delta = False
+    if 'Show secondary y-axis' in checkbox:
         show_secondary_axis = True
+    if 'Use delta value' in checkbox:
+        use_delta = True
 
-    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value)
+    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value, use_delta)
     return fig
 
 # data logging Daemon Threads
@@ -612,8 +621,8 @@ if __name__ == "__main__":
     # so creating data happens twice
 
     # collection thread (doesnt work like that in debug mode as its run twice
-    x = threading.Thread(target=thread_function, args=(), daemon=True)
-    x.start()
+    #x = threading.Thread(target=thread_function, args=(), daemon=True)
+    #x.start()
     """
     x2 = threading.Thread(target=thread_function2, args=(), daemon=True)
     x2.start()
