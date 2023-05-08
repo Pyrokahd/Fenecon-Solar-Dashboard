@@ -14,5 +14,6 @@ EXPOSE 8050
 # or maybe: CMD Python3 app.py
 #CMD ["python3", "app.py"]
 
+
 # Start over gunicorn wsgi instead
-CMD gunicorn --bind 0.0.0.0:80 wsgi
+CMD /data_logging_scripts/data_logging_scripts & gunicorn --bind 0.0.0.0:80 wsgi

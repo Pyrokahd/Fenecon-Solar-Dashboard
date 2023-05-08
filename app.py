@@ -25,7 +25,7 @@ app = dash.Dash(__name__, prevent_initial_callbacks="initial_duplicate")  # defa
 # Dash automatically loads CSS files that are in the assets folder
 
 
-filename: str = "REP_fenecon_voltage_data_v5.csv"
+filename: str = "fenecon_voltage_data.csv"   # "REP_fenecon_voltage_data_v5_test.csv"
 timecolumn = 'Zeitstempel'  # x-axis in most plots
 colors = {"background_plot": "#DEDEDE", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
 GLOBAL_GRAPH_MARGINS = {"l":80, "r":30, "t":5, "b":10}
@@ -91,10 +91,12 @@ def get_list_of_avg_module_voltage_values(all_cell_values) -> list:
         for n in range(14):
             cells_per_module.append(all_cell_values[i + n])
         module_lists.append(np.asarray(cells_per_module))
+
     # Create labels and Avg values
     avg_values_per_module = []
     for l in module_lists:
         avg_values_per_module.append(np.average(l, axis=0))
+
     avg_labels = []
     for i in range(10):
         avg_labels.append(f"Module_{i}")  # from top to bottom in the tower? Seems like it not sure yet
@@ -102,6 +104,13 @@ def get_list_of_avg_module_voltage_values(all_cell_values) -> list:
 
 
 def add_avg_module_to_df(avg_module_values, module_names, df):
+    """
+    Depricated! avg per module is now calculated in the data collection script and directly saved within the csv
+    :param avg_module_values:
+    :param module_names:
+    :param df:
+    :return:
+    """
     # combine the values for every column into tuples
     # because pandas creates row per row so 1 tuple are all values in the first row from all columns
     # for this unpack the lists as args into zip https://stackoverflow.com/questions/4112265/how-to-zip-lists-in-a-list
@@ -278,7 +287,7 @@ def create_settingsdiv(secondary_column_names):
         html.H3("Settings:", id="settings_label"),
 
         dcc.Checklist(options=["Show secondary y-axis", "Use delta value"], id="secondary_y_checkbox",
-                      style={}),
+                      value=[], style={}),
 
         html.Label("Select secondary value", style={"padding-top":"10px"}),
         dcc.Dropdown(
@@ -431,6 +440,11 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
 
     app.layout = html.Div([
         create_headerdiv(),
+        dcc.Interval(
+            id='interval-component',
+            interval=10 * 1000,  # in milliseconds = 60  secs
+            n_intervals=0
+        ),
 
         html.Div([
             html.H2("The mV value per module as average over its cells:",
@@ -603,6 +617,59 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, selected_year_ra
     fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value, use_delta)
     return fig
 
+
+@app.callback(
+    Output("linefig", "figure", allow_duplicate=True),
+    Output('barfig', 'figure', allow_duplicate=True),
+    Output("cell_line_fig", "figure", allow_duplicate=True),
+    Output("cell_bar_fig", "figure", allow_duplicate=True),
+    Input("interval-component", "n_intervals"),
+    State("date_rangeslider", "value"),
+    State("secondary_y_checkbox", "value"),
+    State("secondary_y_dropdown", "value"),
+    State("module-dropdown", "value"),
+    prevent_initial_call=True
+)
+def refresh_all_graphs_on_interval(n, selected_year_range, checkbox, dropdown_value, sel_module_id):
+    tmp_df = global_df.copy()  # need a copy because the date is changed but we don't want to modify the original data
+    tmp_df[timecolumn] = tmp_df[timecolumn].dt.date
+
+    # translate the numbers from the slider to the dates then timedates
+    from_val = tmp_df[timecolumn].unique()[selected_year_range[0]]
+    to_val = tmp_df[timecolumn].unique()[selected_year_range[1]]
+    from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
+    to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
+    to_val = to_val + pd.Timedelta("23:59:59")
+
+    # filter the original df (with datetime not date) to contain only data within the selected dates
+    mask = (global_df[timecolumn] > from_val) & (global_df[timecolumn] < to_val)
+    filtered_df = global_df.loc[mask]
+
+    #
+    show_secondary_axis = False
+    use_delta = False
+    if 'Show secondary y-axis' in checkbox:
+        show_secondary_axis = True
+    if 'Use delta value' in checkbox:
+        use_delta = True
+
+    # Create new figure return that figure
+    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value, use_delta)
+    #fig.update_layout(legend_title_text="blabla")
+    fig.update_layout(transition_duration=200)
+
+    # Update Avg Bar plot
+    barfig = create_bar_fig(filtered_df, global_module_names)
+    barfig.update_layout(transition_duration=200)
+
+    # Update Cell line and bar figures
+    cell_line, cell_bar = create_mV_plots_per_cell_for_one_module(filtered_df, global_module_names, globa_cell_names, sel_module_id)
+    cell_line.update_layout(transition_duration=200)
+    cell_bar.update_layout(transition_duration=200)
+
+    return fig, barfig, cell_line, cell_bar
+
+
 # data logging Daemon Threads
 def thread_function():
     while True:
@@ -632,10 +699,15 @@ if __name__ == "__main__":
     print("thead2 done")
     """
 
+    # waiting for the file to generate if its not there already
+    if not os.path.exists(os.path.join(os.path.join(os.getcwd(), "data"), filename)):
+        time.sleep(10)
+        if not os.path.exists(os.path.join(os.path.join(os.getcwd(), "data"), filename)):
+            time.sleep(5*60+5)  # wait 5 mins and 5 secs
+
     df = read_data_as_df(filename)
     cell_values, cell_names = get_list_of_cell_voltage_values(df)
     avg_module_values, module_names = get_list_of_avg_module_voltage_values(cell_values)
-    df = add_avg_module_to_df(avg_module_values, module_names, df)
 
     global_secondary_column_names = [x for x in df.columns if x not in cell_names+module_names+[timecolumn] and x[:6] != "Module"]
     global_df = df  # to have a global reference to use in callbacks
@@ -651,18 +723,10 @@ if __name__ == "__main__":
     print("main running")
     # to access ip adress of server where the app is running in the LAN, host='0.0.0.0'
     # https://stackoverflow.com/questions/61678129/how-to-access-a-plotly-dash-app-server-via-lan
-    app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
-    #app.run_server(debug=False, port=8050, dev_tools_hot_reload=False, host="0.0.0.0")
+    #app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
+    app.run_server(debug=False, port=8050, dev_tools_hot_reload=False, host="0.0.0.0")
 
-    # todo make intervals to read new CSV data? https://dash.plotly.com/live-updates#the-dcc.interval-component
-    # https://dash.plotly.com/app-lifecycle
 
-    # TODO deployment as local server:
-    # https://community.plotly.com/t/how-to-deploy-dash-app-internally-in-local-network/61312/2   # question
-    # https://chrisvoncsefalvay.com/2019/08/28/deploying-dash-on-amazon-ecs/  # similar tutorial (but for amazon)
-    # https://github.com/vsisl/Covid19_cz_districts  # example project
-
-    # Todo include data collection script within this app
 
     # Todo config file to change urls?
 
