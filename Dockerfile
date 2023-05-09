@@ -16,4 +16,10 @@ EXPOSE 8050
 
 
 # Start over gunicorn wsgi instead
-CMD /data_logging_scripts/data_logging_scripts & gunicorn --bind 0.0.0.0:80 wsgi
+#CMD python3 data_logging_scripts/collectDataVoltageV5.py & gunicorn --bind 0.0.0.0:8050 wsgi
+#CMD ["python3", "./data_logging_scripts/collectDataVoltageV5.py"] & gunicorn --bind 0.0.0.0:8050 wsgi
+#CMD ["python3", "./data_logging_scripts/collectDataVoltageV5.py"] & ["python3", "app.py"]
+
+CMD gunicorn --bind 0.0.0.0:8050 wsgi
+#CMD ["python3", "main.py"]
+#CMD ["python3", "./data_logging_scripts/collectDataVoltageV5.py"]

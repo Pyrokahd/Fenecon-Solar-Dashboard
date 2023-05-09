@@ -1,6 +1,6 @@
 #Abfrage der Messwerte FENECON Wechselrichter via REST API
 # Hier mit fester IP Adresse
-# Stand 19.3.2023
+# Stand 08.05.2023
 import os
 import time
 import requests
@@ -9,7 +9,10 @@ from os.path import exists
 from datetime import datetime
 #import explorerhat
 import numpy as np
+import logging
+logging.basicConfig(filename='dataCollectionLog.log', encoding='utf-8', level=logging.DEBUG)
 print("done importing")
+logging.info("done importing")
 
 # SETTINGS
 LOOP_TIME = 5  # time for one iteration in mins (when values are requestet and saved)
@@ -65,7 +68,7 @@ for i in range(10):  #Anzahl der Batteriemodule hier eintragen
     for n in range(14):  # Cells per Module = 14
         if n < 10:
             cellnumber = "0"+str(n)
-            print("Cell=", cellnumber)
+            #print("Cell=", cellnumber)
         else:
             cellnumber = n
         temp_url = f"http://x:user@192.168.1.229:8084/rest/channel/battery0/Tower0Module{i}Cell0{cellnumber}Voltage"
@@ -148,87 +151,116 @@ def add_avg_mV_per_module(fields, row, all_cell_mV_values):
         fields.append(avg_labels[i])
         row.append(avg_values_per_module[i])
 
+
 file = "fenecon_voltage_data.csv"
-data_path = os.path.abspath( os.path.join( os.getcwd(), "..", "data"))  # current dir one back and then into data
-filename = os.path.join(file, data_path)  # actually a file path
+
+# current dir one back and then into data
+data_path = os.path.abspath( os.path.join( os.path.dirname(os.path.realpath(__file__)), "..", "data"))
+logging.debug(f"data_path: {data_path}")
+
+filename = os.path.join(data_path, file)  # actually a file path
 addHeader = True
 run_loop = True
+
+
+# add the other field names that would be created from "add_global_min_max_delta_mV" and "add_avg_mV_per_module"
+fields.append("Global Min")
+fields.append("Global Max")
+fields.append("Global Delta")
+# range(NUM_MODULES)
+for i in range(10):
+    fields.append(f"Module_{i}")
+# CREATE EMPTY CSV FILE!
+with open(filename, "a", newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    # adding header
+    writer.writerow(fields)
+
+
 reset_fields = fields
 
 
-# collect data loop
-while run_loop:
-    # Fields need to be resetted because new fields are added in this loop to track module mV min max and delta as well as global
-    fields = reset_fields
-    
-    start = time.time()
-    #explorerhat.light[3].on()  # green lamp on = explorer is reading data
-    print("Running start of loop ...")
+def collection_loop():
+    # collect data loop
+    while run_loop:
+        # Fields need to be resetted because new fields are added in this loop to track module mV min max and delta as well as global
+        fields = reset_fields
 
-    if exists(filename):
-        addHeader = False
+        start = time.time()
+        # explorerhat.light[3].on()  # green lamp on = explorer is reading data
+        print("Running start of loop ...")
+        logging.info("Running start of loop ...")
 
-    row = []
+        if exists(filename):
+            addHeader = False
 
-    # Get timestamp
-    dt = datetime.now()
-    row.append(dt)
+        row = []
 
-    dict_of_all_modul_voltages = {}
-    current_module = None
-    # Get data from API and write it into a row
-    #print("API REST call ...")
-    
-    try:
-        for url in urls:
-            print("Request with url: ", url)
-            response = requests.get(url)
-            responseData = response.json()
-            entry = responseData["value"]
-            row.append(entry)
+        # Get timestamp
+        dt = datetime.now()
+        row.append(dt)
 
-        all_cell_mV_values = get_all_cell_mV_values(cell_voltage_urls)
-        add_global_min_max_delta_mV(fields, row, all_cell_mV_values)
-        add_avg_mV_per_module(fields, row, all_cell_mV_values)
-        
-        # Add the row to a csv file
-        print("adding row ...")
-        with open(filename, "a", newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            if addHeader:
-                writer.writerow(fields)
-            writer.writerow(row)
+        dict_of_all_modul_voltages = {}
+        current_module = None
+        # Get data from API and write it into a row
+        # print("API REST call ...")
 
-        # Replace all ',' with ';'
-        file = open(filename)
-        replacement = file.read().replace(",", ";")
-        file.close()
-        file = open(filename, "w")
-        file.write(replacement)
-        file.close()
-        #explorerhat.light[3].off()
-        
-        print(f"Iteration took: {time.time() - start} s")
+        try:
+            for url in urls:
+                #print("Request with url: ", url)
+                response = requests.get(url)
+                responseData = response.json()
+                entry = responseData["value"]
+                row.append(entry)
 
-        # Wait for 60 seconds
-        #print("waiting ...")
-        for minute in range(LOOP_TIME-1):  #(min-1)
-            blink_freq = 2  # in sec  (for accurate results use even numbers that add up to 60)
-            blink_count = 60 // blink_freq  # how often do we need to blink with that freq for 1 min
-            for _ in range(blink_count):
-                #explorerhat.light.red.on()
-                time.sleep(blink_freq//2)
-                #explorerhat.light.red.off()
-                time.sleep(blink_freq//2)
-        
-        #explorerhat.light[0].off()
-        #explorerhat.light[1].off()
-        #explorerhat.light[2].off()
-        #explorerhat.light[3].off()
-    except Exception as e:
-        print(f"Exception occured: {e} \n waiting 5 minutes before trying again...")
-        print(f"Time: {datetime.now()}")
-        time.sleep(5*60)
-        print(f"done sleeping, retrying...")
-        print()
+            all_cell_mV_values = get_all_cell_mV_values(cell_voltage_urls)
+            add_global_min_max_delta_mV(fields, row, all_cell_mV_values)
+            add_avg_mV_per_module(fields, row, all_cell_mV_values)
 
+            # Add the row to a csv file
+            print("adding row ...")
+            logging.info("adding row ...")
+            with open(filename, "a", newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                if addHeader:
+                    writer.writerow(fields)
+                writer.writerow(row)
+
+            # Replace all ',' with ';'
+            file = open(filename)
+            replacement = file.read().replace(",", ";")
+            file.close()
+            file = open(filename, "w")
+            file.write(replacement)
+            file.close()
+            # explorerhat.light[3].off()
+
+            print(f"Iteration took: {time.time() - start} s")
+            logging.info(f"Iteration took: {time.time() - start} s")
+
+            # Wait for 60 seconds
+            # print("waiting ...")
+            for minute in range(LOOP_TIME - 1):  # (min-1)
+                blink_freq = 2  # in sec  (for accurate results use even numbers that add up to 60)
+                blink_count = 60 // blink_freq  # how often do we need to blink with that freq for 1 min
+                for _ in range(blink_count):
+                    # explorerhat.light.red.on()
+                    time.sleep(blink_freq // 2)
+                    # explorerhat.light.red.off()
+                    time.sleep(blink_freq // 2)
+
+            # explorerhat.light[0].off()
+            # explorerhat.light[1].off()
+            # explorerhat.light[2].off()
+            # explorerhat.light[3].off()
+        except Exception as e:
+            print(f"Exception occured: {e} \n waiting 5 minutes before trying again...")
+            logging.error(f"Exception occured: {e} \n waiting 5 minutes before trying again...")
+            print(f"Time: {datetime.now()}")
+            logging.debug(f"Time: {datetime.now()}")
+            time.sleep(5 * 60)
+            print(f"done sleeping, retrying...")
+            logging.debug(f"done sleeping, retrying...")
+            print()
+
+collection_loop()

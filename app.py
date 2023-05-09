@@ -15,6 +15,8 @@ import pandas as pd
 import os
 import numpy as np
 import matplotlib.dates as mdates
+import logging
+logging.basicConfig(filename='DashboardLog.log', encoding='utf-8', level=logging.DEBUG)
 
 import time
 import threading
@@ -255,11 +257,11 @@ def create_headerdiv():
 
         This Dashboard primarly shows the voltage values for every battery module to see if they behave the same.
         Every module has 14 cells. Additional information can be included in the main graph as secondary y axis,
-        for example the battery loading level. This is done in the "Setting" section.
+        for example the battery loading level. This is done in the "Settings" section.
         '''
 
     return html.Div([
-        html.Img(src=os.path.join("assets", "driller.PNG"), style={"width":"100px","height":"100px"}),
+        #html.Img(src=os.path.join("assets", "driller.PNG"), style={"width":"100px","height":"100px"}),
         dcc.Markdown(children=header_text)
     ], id="header_div", className="container")
 
@@ -670,61 +672,42 @@ def refresh_all_graphs_on_interval(n, selected_year_range, checkbox, dropdown_va
     return fig, barfig, cell_line, cell_bar
 
 
-# data logging Daemon Threads
-def thread_function():
-    while True:
-        print("thread 1 running...")
-        print("------------------------")
-        time.sleep(4)
+# MAIN CODE THAT SHOULD ALSO RUN WHEN IMPORTING THE SCRIPT (into wsgi.py)
+print("Checking for file...")
+logging.info("Checking for file...")
+# waiting for the file to generate if its not there already
+if not os.path.exists(os.path.join(os.path.join(os.getcwd(), "data"), filename)):
+    print("CSV TO READ DOESNT EXIST!")
+    logging.WARNING("CSV TO READ DOESNT EXIST!")
+print("done checking")
+logging.info("done checking")
 
-def thread_function2():
-    #while True:
-    print("thread 2 running...")
-    time.sleep(6)
+df = read_data_as_df(filename)
+cell_values, cell_names = get_list_of_cell_voltage_values(df)
+avg_module_values, module_names = get_list_of_avg_module_voltage_values(cell_values)
+
+global_secondary_column_names = [x for x in df.columns if
+                                 x not in cell_names + module_names + [timecolumn] and x[:6] != "Module"]
+global_df = df  # to have a global reference to use in callbacks
+global_module_names = module_names
+globa_cell_names = cell_names
+
+create_app_layout(global_df, module_names, cell_names, global_secondary_column_names)
 
 #  __main__ means the script is executed directly and not imported
 if __name__ == "__main__":
-    # NOTE!: Flask in debug runs the script twice.
-    # so creating data happens twice
-
-    # collection thread (doesnt work like that in debug mode as its run twice
-    #x = threading.Thread(target=thread_function, args=(), daemon=True)
-    #x.start()
-    """
-    x2 = threading.Thread(target=thread_function2, args=(), daemon=True)
-    x2.start()
-    x.join()
-    print("thead1 done")
-    x2.join()
-    print("thead2 done")
-    """
-
-    # waiting for the file to generate if its not there already
-    if not os.path.exists(os.path.join(os.path.join(os.getcwd(), "data"), filename)):
-        time.sleep(10)
-        if not os.path.exists(os.path.join(os.path.join(os.getcwd(), "data"), filename)):
-            time.sleep(5*60+5)  # wait 5 mins and 5 secs
-
-    df = read_data_as_df(filename)
-    cell_values, cell_names = get_list_of_cell_voltage_values(df)
-    avg_module_values, module_names = get_list_of_avg_module_voltage_values(cell_values)
-
-    global_secondary_column_names = [x for x in df.columns if x not in cell_names+module_names+[timecolumn] and x[:6] != "Module"]
-    global_df = df  # to have a global reference to use in callbacks
-    global_module_names = module_names
-    globa_cell_names = cell_names
-
-    create_app_layout(global_df, module_names, cell_names, global_secondary_column_names)
-
     # Correlation test
     #print(np.corrcoef(global_df["Ladezustand [%]"].tolist(), global_df["Netzbezug Energie [Wh]"].diff().fillna(0).tolist()))
     #print(np.corrcoef(global_df["Ladezustand [%]"].tolist(), global_df["Netzeinspeisung Energie [Wh]"].diff().fillna(0).tolist()))
 
     print("main running")
+    logging.info("main running")
     # to access ip adress of server where the app is running in the LAN, host='0.0.0.0'
     # https://stackoverflow.com/questions/61678129/how-to-access-a-plotly-dash-app-server-via-lan
-    #app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
-    app.run_server(debug=False, port=8050, dev_tools_hot_reload=False, host="0.0.0.0")
+
+    app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
+    #app.run_server(debug=False, port=8050, dev_tools_hot_reload=False, host="0.0.0.0")
+    #app.run_server()
 
 
 
