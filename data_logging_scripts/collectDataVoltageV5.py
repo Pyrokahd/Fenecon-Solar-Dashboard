@@ -154,8 +154,8 @@ def add_avg_mV_per_module(fields, row, all_cell_mV_values):
 
 file = "fenecon_voltage_data.csv"
 
-# current dir one back and then into data
-data_path = os.path.abspath( os.path.join( os.path.dirname(os.path.realpath(__file__)), "..", "data"))
+# current dir and then into data
+data_path = os.path.abspath( os.path.join( os.path.dirname(os.path.realpath(__file__)), "data"))
 logging.debug(f"data_path: {data_path}")
 
 filename = os.path.join(data_path, file)  # actually a file path

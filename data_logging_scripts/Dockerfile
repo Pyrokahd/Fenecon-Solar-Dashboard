@@ -9,4 +9,4 @@ RUN pip3 install -r requirements.txt
 
 COPY . .
 
-CMD ["python3", "./data_logging_scripts/collectDataVoltageV5.py"]
+CMD ["python3", "./collectDataVoltageV5.py"]

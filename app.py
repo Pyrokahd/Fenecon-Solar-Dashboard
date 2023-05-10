@@ -677,8 +677,9 @@ print("Checking for file...")
 logging.info("Checking for file...")
 # waiting for the file to generate if its not there already
 if not os.path.exists(os.path.join(os.path.join(os.getcwd(), "data"), filename)):
-    print("CSV TO READ DOESNT EXIST!")
+    print("CSV TO READ DOESNT EXIST! Waiting 20 sec")
     logging.WARNING("CSV TO READ DOESNT EXIST!")
+    time.sleep(20)
 print("done checking")
 logging.info("done checking")
 
