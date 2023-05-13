@@ -448,7 +448,7 @@ def get_df_with_transformed_date_and_rangeslider_marker(_df):
         df_new_time[timecolumn] = df_new_time[timecolumn].dt.round(freq="H")
         flag = "hour"
     else:
-        df_new_time[timecolumn] = df_new_time[timecolumn].dt.round(freq="M")
+        df_new_time[timecolumn] = df_new_time[timecolumn].dt.round(freq="min")
         flag = "minute"
 
     # MARKER
@@ -496,6 +496,10 @@ def get_df_mask_from_rangeslider(flag, _rounded_df, _df_to_mask, minval, maxval)
     if flag == "day":
         # add 24h -1 sec
         to_val = to_val + pd.Timedelta("23:59:59")
+    if flag == "minute":
+        # add 24h -1 sec
+        from_val = from_val - pd.Timedelta("00:00:59")
+        to_val = to_val + pd.Timedelta("00:00:59")
     # filter the original df (with datetime not date) to contain only data within the selected dates
     mask = (_df_to_mask[timecolumn] >= from_val) & (_df_to_mask[timecolumn] <= to_val)
     return mask
@@ -520,7 +524,7 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
         create_headerdiv(),
         dcc.Interval(
             id='interval-component',
-            interval=10 * 1000,  # in milliseconds
+            interval= 60 * 1000,  # in milliseconds
             n_intervals=0
         ),
 
