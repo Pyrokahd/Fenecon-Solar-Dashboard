@@ -16,9 +16,9 @@ RUN pip3 install -r requirements.txt
 
 COPY . .
 # expose port to outside of container
-EXPOSE 8050
+EXPOSE 80
 
 
 
 # Start over gunicorn wsgi instead
-CMD gunicorn --bind 0.0.0.0:8050 wsgi
+CMD gunicorn --bind 0.0.0.0:80 --workers=4 wsgi
