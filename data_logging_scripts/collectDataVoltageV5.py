@@ -183,6 +183,7 @@ with open(filename, "a", newline='') as csvfile:
 
 
 reset_fields = fields
+addHeader = True
 
 
 def collection_loop():
