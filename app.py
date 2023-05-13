@@ -440,7 +440,6 @@ def get_df_with_transformed_date_and_rangeslider_marker(_df):
     df_new_time = _df.copy()
     difference = max(df_new_time[timecolumn]) - min(df_new_time[timecolumn])
     if difference > pd.Timedelta(1, "d"):
-        print("larger")
         # reduce time timestamp resolution to per day basis
         df_new_time[timecolumn] = df_new_time[timecolumn].dt.date   # floors to closest day without time
         flag = "day"
@@ -459,10 +458,28 @@ def get_df_with_transformed_date_and_rangeslider_marker(_df):
     return flag, df_new_time, marker
 
 
-def get_df_mask_from_rangeslider(flag, _df, minval, maxval):
+def get_df_mask_from_rangeslider(flag, _rounded_df, _df_to_mask, minval, maxval):
+    """
+    Takes a flag 'hour' or 'day' (based on if the datas timestemps are rounded to the full hour or converted to date).
+    Takes a dataframe on which the min and maxvals are based (same as df to mask but with rounded or converted timedates).
+    Takes a dataframe to be masked, and a minval and maxval refering to datetimes (_df_to_mask).
+    Returns the mask to filter the dataframe to be between the selected datetimes.
+    :param flag:
+    :type flag:
+    :param _rounded_df:
+    :type _rounded_df:
+    :param _df_to_mask:
+    :type _df_to_mask:
+    :param minval:
+    :type minval:
+    :param maxval:
+    :type maxval:
+    :return:
+    :rtype:
+    """
     # translate the numbers from the slider to the dates then timedates
-    from_val = _df[timecolumn].unique()[minval]
-    to_val = _df[timecolumn].unique()[maxval]
+    from_val = _rounded_df[timecolumn].unique()[minval]
+    to_val = _rounded_df[timecolumn].unique()[maxval]
     from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
     to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
     # no time added for hour since hour is rounded and not floored
@@ -472,9 +489,8 @@ def get_df_mask_from_rangeslider(flag, _df, minval, maxval):
     if flag == "day":
         # add 24h -1 sec
         to_val = to_val + pd.Timedelta("23:59:59")
-
     # filter the original df (with datetime not date) to contain only data within the selected dates
-    mask = (_df[timecolumn] >= from_val) & (_df[timecolumn] <= to_val)
+    mask = (_df_to_mask[timecolumn] >= from_val) & (_df_to_mask[timecolumn] <= to_val)
     return mask
 
 
@@ -574,8 +590,9 @@ def update_rangeslider_marks(vals, marks):
 )
 def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdown_value):
     # first get the transformed timestamps (as date or rounded to full hour)
-    flag, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
-    mask = get_df_mask_from_rangeslider(flag, tmp_df, selected_year_range[0], selected_year_range[1])
+
+    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(global_df)
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, global_df, selected_year_range[0], selected_year_range[1])
     filtered_df = global_df.loc[mask]
 
     #
@@ -614,8 +631,8 @@ def update_cell_figures(sel_module_id, selected_year_range):
     # year_range is a list with two numbers left and right value
     # first get the timestamps as date (without time) as tempdf
     # first get the transformed timestamps (as date or rounded to full hour)
-    flag, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
-    mask = get_df_mask_from_rangeslider(flag, tmp_df, selected_year_range[0], selected_year_range[1])
+    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(global_df)
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, global_df, selected_year_range[0], selected_year_range[1])
     filtered_df = global_df.loc[mask]
 
     # Update Cell line and bar figures
@@ -638,8 +655,8 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, selected_year_ra
     # year_range is a list with two numbers left and right value
     # first get the timestamps as date (without time) as tempdf
     # first get the transformed timestamps (as date or rounded to full hour)
-    flag, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
-    mask = get_df_mask_from_rangeslider(flag, tmp_df, selected_year_range[0], selected_year_range[1])
+    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(global_df)
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, global_df, selected_year_range[0], selected_year_range[1])
     filtered_df = global_df.loc[mask]
 
     show_secondary_axis = False
@@ -676,7 +693,7 @@ def refresh_all_graphs_on_interval(n, selected_year_range, checkbox, dropdown_va
 
     # first get the transformed timestamps (as date or rounded to full hour)
     flag, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
-    mask = get_df_mask_from_rangeslider(flag, tmp_df, selected_year_range[0], selected_year_range[1])
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, global_df, selected_year_range[0], selected_year_range[1])
     filtered_df = global_df.loc[mask]
 
     # Update the graphs
