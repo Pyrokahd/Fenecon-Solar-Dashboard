@@ -10,7 +10,8 @@ from datetime import datetime
 #import explorerhat
 import numpy as np
 import logging
-logging.basicConfig(filename='dataCollectionLog.log', encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(filename='dataCollectionLog.log', encoding='utf-8', level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 print("done importing")
 logging.info("done importing")
 

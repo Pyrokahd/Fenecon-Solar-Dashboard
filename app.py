@@ -15,8 +15,10 @@ import pandas as pd
 import os
 import numpy as np
 import matplotlib.dates as mdates
+import datetime
 import logging
-logging.basicConfig(filename='DashboardLog.log', encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(filename='DashboardLog.log', encoding='utf-8', level=logging.DEBUG,
+                    format='app.py %(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 import time
 import threading
@@ -707,9 +709,9 @@ print("Checking for file...")
 logging.info("Checking for file...")
 # waiting for the file to generate if its not there already
 if not os.path.exists(os.path.join(os.path.join(os.getcwd(), "data"), filename)):
-    print("CSV TO READ DOESNT EXIST! Waiting 20 sec")
-    logging.WARNING("CSV TO READ DOESNT EXIST!")
-    time.sleep(20)
+    print("CSV TO READ DOESNT EXIST! Waiting...")
+    logging.warning("CSV TO READ DOESNT EXIST! sleeping 3 min...")
+    time.sleep(180)  # wait 2 minutes
 print("done checking")
 logging.info("done checking")
 
