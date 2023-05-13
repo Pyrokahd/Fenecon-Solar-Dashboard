@@ -183,7 +183,6 @@ with open(filename, "a", newline='') as csvfile:
 
 
 reset_fields = fields
-addHeader = True
 
 
 def collection_loop():
@@ -196,7 +195,8 @@ def collection_loop():
         # explorerhat.light[3].on()  # green lamp on = explorer is reading data
         print("Running start of loop ...")
         logging.info("Running start of loop ...")
-
+        
+        addHeader = True
         if exists(filename):
             addHeader = False
 
