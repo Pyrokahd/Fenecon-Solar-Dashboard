@@ -16,26 +16,29 @@ The URLs in the data_collection_script (data_logging_Scripts/collectDataVoltageV
 
 # deploying using docker
 1. install docker on target computer
-
+2. clone this repo
+3. 
 ## data collection
-1. create image
+1. Navigate to data_logging_scripts in this repo (...\Fenecon-Solar-Dashboard\data_logging_scripts)
+3. create image
 `docker build -t datacollection-docker .`
-2. create volume (for persistent data)
+3. create volume (for persistent data)
 `docker volume create fenDataVolume`
-3. run as container
+4. run as container
 `docker run --mount source=fenDataVolume,destination=/app/data datacollection-docker`
 
 It collects the current data every 5 minutes via the API.
 
 ## dashboard
-1. create image
+1. Navigate to this repo (...\Fenecon-Solar-Dashboard)
+2. create image
 `docker build -t fdashboard-docker .`
-2. create volume (for persistent data)
+3. create volume (for persistent data)
 `docker volume create fenDataVolume`
-3. run as container (on port 8050)
+4. run as container (on port 8050)
 `docker run --publish 8050:8050 --mount source=fenDataVolume,destination=/app/data fdashboard-docker`
-4. look up the local ip address of that computer
-5. Enter that url on port 8050 into the browser (example: http://192.168.1.47:8050/)
+5. look up the local ip address of that computer
+6. Enter that url on port 8050 into the browser (example: http://192.168.1.47:8050/)
 
 ## file storage
 The created csv file is stored in the docker containers and shared on the volume. 
