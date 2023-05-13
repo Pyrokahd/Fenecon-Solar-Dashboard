@@ -490,9 +490,9 @@ def get_df_mask_from_rangeslider(flag, _rounded_df, _df_to_mask, minval, maxval)
     from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
     to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
     # no time added for hour since hour is rounded and not floored
-    #if flag == "hour":
-    #    # add 1 hour -1 sec
-    #    to_val = to_val + pd.Timedelta("00:59:59")
+    if flag == "hour":
+        # add 1 hour -1 sec
+        to_val = to_val + pd.Timedelta("00:59:59")
     if flag == "day":
         # add 24h -1 sec
         to_val = to_val + pd.Timedelta("23:59:59")
