@@ -17,7 +17,8 @@ The URLs in the data_collection_script (data_logging_Scripts/collectDataVoltageV
 # deploying using docker
 1. install docker on target computer
 2. clone this repo
-3. 
+3. Open two consoles (one for every process)
+
 ## data collection
 1. Navigate to data_logging_scripts in this repo (...\Fenecon-Solar-Dashboard\data_logging_scripts)
 3. create image
