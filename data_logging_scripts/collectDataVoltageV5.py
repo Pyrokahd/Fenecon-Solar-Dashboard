@@ -163,7 +163,9 @@ filename = os.path.join(data_path, file)  # actually a file path
 addHeader = True
 run_loop = True
 
-
+# File is created when the first row is read out (including column names)
+# this way its easier to check if data exists (when the file exists) in the dashboard app.py
+"""
 # add the other field names that would be created from "add_global_min_max_delta_mV" and "add_avg_mV_per_module"
 fields.append("Global Min")
 fields.append("Global Max")
@@ -176,6 +178,7 @@ with open(filename, "a", newline='') as csvfile:
     writer = csv.writer(csvfile)
     # adding header
     writer.writerow(fields)
+"""
 
 
 reset_fields = fields
