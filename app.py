@@ -427,7 +427,7 @@ def create_correlation_div(_df):
 def get_df_with_transformed_date_and_rangeslider_marker(_df):
     """
     Returns a flag, the edited dataframe and a marker for the rangeslider.
-    The returnes flag 'hour' or 'day' tells us if it is rounded to hours or to days.
+    The returns flag 'hour' or 'day' or 'minute' tells us if it is rounded to hours or to days.
     df.
     The marker dict is a dict used to set the markers for a rangeslider to the datetime.
     :param _df:
@@ -443,9 +443,13 @@ def get_df_with_transformed_date_and_rangeslider_marker(_df):
         # reduce time timestamp resolution to per day basis
         df_new_time[timecolumn] = df_new_time[timecolumn].dt.date   # floors to closest day without time
         flag = "day"
-    else:
+    elif difference > pd.Timedelta(1, "H"):
         # timedelta.round(freq='H')
         df_new_time[timecolumn] = df_new_time[timecolumn].dt.round(freq="H")
+        flag = "hour"
+    else:
+        df_new_time[timecolumn] = df_new_time[timecolumn].dt.round(freq="M")
+        flag = "minute"
 
     # MARKER
     numdate = [x for x in range(len(df_new_time[timecolumn].unique()))]
@@ -453,6 +457,9 @@ def get_df_with_transformed_date_and_rangeslider_marker(_df):
         marker = {numd: {"label": date.strftime('%d/%m/%y'), "style": {"color": colors["text"]}} for numd, date in
                      zip(numdate, df_new_time[timecolumn].unique())}
     elif flag == "hour":
+        marker = {numd: {"label": date.strftime('%d/%m/%y %H:%M'), "style": {"color": colors["text"]}} for numd, date in
+                  zip(numdate, df_new_time[timecolumn].unique())}
+    elif flag == "minute":
         marker = {numd: {"label": date.strftime('%d/%m/%y %H:%M'), "style": {"color": colors["text"]}} for numd, date in
                   zip(numdate, df_new_time[timecolumn].unique())}
     return flag, df_new_time, marker
