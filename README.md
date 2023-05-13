@@ -36,10 +36,10 @@ It collects the current data every 5 minutes via the API.
 `docker build -t fdashboard-docker .`
 3. create volume (for persistent data)
 `docker volume create fenDataVolume`
-4. run as container (on port 8050)
-`docker run --publish 8050:8050 --mount source=fenDataVolume,destination=/app/data fdashboard-docker`
+4. run as container (on port 80)
+`docker run --publish 80:80 --mount source=fenDataVolume,destination=/app/data fdashboard-docker`
 5. look up the local ip address of that computer
-6. Enter that url on port 8050 into the browser (example: http://192.168.1.47:8050/)
+6. Enter that url on port 80 into the browser (example: http://192.168.1.47:80/)
 
 ## file storage
 The created csv file is stored in the docker containers and shared on the volume. 
