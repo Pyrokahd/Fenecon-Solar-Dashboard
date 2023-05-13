@@ -34,7 +34,7 @@ GLOBAL_GRAPH_MARGINS = {"l":80, "r":30, "t":5, "b":10}
 
 global_df = None  # global var for dataframe to be used in callbacks
 global_module_names = None  # global var for the module names to be used in callbacks to update plots
-globa_cell_names = None  # global var for the column names for all cells
+global_cell_names = None  # global var for the column names for all cells
 global_secondary_column_names = None  # global var for column names that are not modules or cells
 
 debug_run = True  # flask runs the main code twice when in debugging
@@ -305,13 +305,13 @@ def create_settingsdiv(secondary_column_names):
     ], id="settings_div", className="div_class")
 
 
-def create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names, module_id: int = 0):
+def create_mV_plots_per_cell_for_one_module(_df, _module_names, all_cell_names, module_id: int = 0):
     """
 
-    :param df:
-    :type df:
-    :param module_names:  Only to be used as label for the legend of the cell plot.
-    :type module_names:
+    :param _df:
+    :type _df:
+    :param _module_names:  Only to be used as label for the legend of the cell plot.
+    :type _module_names:
     :param all_cell_names:
     :type all_cell_names:
     :param module_id:
@@ -329,11 +329,10 @@ def create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names, mo
     for name in module_cell_values_names:
         i+=1
         short_name = shortened_cell_names[i]
-        fig.add_trace(go.Scatter(x=df[timecolumn], y=df[name], mode='lines',
+        fig.add_trace(go.Scatter(x=_df[timecolumn], y=_df[name], mode='lines',
                                  showlegend=True, line=dict(width=0.8), name=short_name,
                                  hovertemplate="%s<br>Date=%%{x}<br>mV=%%{y}<extra></extra>" % short_name
                                  ))
-
     fig.update_xaxes(title_text="Date")
     fig.update_yaxes(title_text="mV")
     # change colors
@@ -345,15 +344,15 @@ def create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names, mo
                     b=GLOBAL_GRAPH_MARGINS["b"]),
         height=int(360),
         # TODO This seems to be a bug in dash that the legend_title doesnt update on the callback
-        #legend_title_text=str(module_names[module_id]),
-        #title_text="mV per cell in "+str(module_names[module_id])
+        #legend_title_text=str(_module_names[module_id]),
+        #title_text="mV per cell in "+str(_module_names[module_id])
     )
     #fig.update_layout(showlegend=True)
 
     # Create bar plot for avg cell mV
     avg_per_cell = []
     for cell in module_cell_values_names:
-        avg_per_cell.append(np.average(np.asarray(df[cell].tolist())))
+        avg_per_cell.append(np.average(np.asarray(_df[cell].tolist())))
 
     # create bar figure with shortened cell names
     fig_bar = px.bar(x=shortened_cell_names,
@@ -374,8 +373,8 @@ def create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names, mo
     return fig, fig_bar
 
 
-def create_module_cell_plots_div(df, module_names, all_cell_names):
-    fig1, fig2 = create_mV_plots_per_cell_for_one_module(df, module_names, all_cell_names)
+def create_module_cell_plots_div(_df, _module_names, all_cell_names):
+    fig1, fig2 = create_mV_plots_per_cell_for_one_module(_df, _module_names, all_cell_names)
 
     return html.Div([
         # top right bottom left (margin)
@@ -383,7 +382,7 @@ def create_module_cell_plots_div(df, module_names, all_cell_names):
 
         #Settings div
         html.Div([
-            create_module_selection_div(module_names),
+            create_module_selection_div(_module_names),
 
             html.Div([
                 # empty div next to module selection for spacing
@@ -423,6 +422,60 @@ def create_correlation_div(_df):
     ], id="correlation_row_div", className="div_class", style={'display': 'flex', 'flex-direction': 'row'})
 
 
+def get_df_with_transformed_date_and_rangeslider_marker(_df):
+    """
+    Returns a flag, the edited dataframe and a marker for the rangeslider.
+    The returnes flag 'hour' or 'day' tells us if it is rounded to hours or to days.
+    df.
+    The marker dict is a dict used to set the markers for a rangeslider to the datetime.
+    :param _df:
+    :type _df:
+    :return: flag, dataframe, marker
+    :rtype: str, pandas.df, dict
+    """
+    # EDIT DATAFRAME
+    flag = "hour"
+    df_new_time = _df.copy()
+    difference = max(df_new_time[timecolumn]) - min(df_new_time[timecolumn])
+    if difference > pd.Timedelta(1, "d"):
+        print("larger")
+        # reduce time timestamp resolution to per day basis
+        df_new_time[timecolumn] = df_new_time[timecolumn].dt.date   # floors to closest day without time
+        flag = "day"
+    else:
+        # timedelta.round(freq='H')
+        df_new_time[timecolumn] = df_new_time[timecolumn].dt.round(freq="H")
+
+    # MARKER
+    numdate = [x for x in range(len(df_new_time[timecolumn].unique()))]
+    if flag == "day":
+        marker = {numd: {"label": date.strftime('%d/%m/%y'), "style": {"color": colors["text"]}} for numd, date in
+                     zip(numdate, df_new_time[timecolumn].unique())}
+    elif flag == "hour":
+        marker = {numd: {"label": date.strftime('%d/%m/%y %H:%M'), "style": {"color": colors["text"]}} for numd, date in
+                  zip(numdate, df_new_time[timecolumn].unique())}
+    return flag, df_new_time, marker
+
+
+def get_df_mask_from_rangeslider(flag, _df, minval, maxval):
+    # translate the numbers from the slider to the dates then timedates
+    from_val = _df[timecolumn].unique()[minval]
+    to_val = _df[timecolumn].unique()[maxval]
+    from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
+    to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
+    # no time added for hour since hour is rounded and not floored
+    #if flag == "hour":
+    #    # add 1 hour -1 sec
+    #    to_val = to_val + pd.Timedelta("00:59:59")
+    if flag == "day":
+        # add 24h -1 sec
+        to_val = to_val + pd.Timedelta("23:59:59")
+
+    # filter the original df (with datetime not date) to contain only data within the selected dates
+    mask = (_df[timecolumn] >= from_val) & (_df[timecolumn] <= to_val)
+    return mask
+
+
 def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
     """
     add html elements and figues to the dash app
@@ -431,11 +484,9 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
     :return:
     :rtype:
     """
-    # reduce time timestamp resolution to per day basis
-    df_time_as_days = df.copy()
-    df_time_as_days[timecolumn] = df_time_as_days[timecolumn].dt.date
-    # dates as numbers used for dateslider
-    numdate = [x for x in range(len(df_time_as_days[timecolumn].unique()))]
+    # reduce time timestamp resolution to per day basis (or to hours if its less than 24h)
+    flag, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
+    numdate = [x for x in range(len(tmp_df[timecolumn].unique()))]
 
     fig = create_fig_graphobject(df, module_names)
     bar_fig = create_bar_fig(df, module_names)
@@ -444,7 +495,7 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
         create_headerdiv(),
         dcc.Interval(
             id='interval-component',
-            interval=10 * 1000,  # in milliseconds = 60  secs
+            interval=10 * 1000,  # in milliseconds
             n_intervals=0
         ),
 
@@ -457,7 +508,7 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
         html.Div([
             dcc.RangeSlider(min=numdate[0], max=numdate[-1], value=[numdate[-0], numdate[-1]],
                         #marks={numd: date.strftime('%d/%m/%y') for numd, date in zip(numdate, df_time_as_days[timecolumn].unique())},
-                        marks={numd: {"label": date.strftime('%d/%m/%y'), "style": {"color":colors["text"]} } for numd, date in zip(numdate, df_time_as_days[timecolumn].unique())},
+                        marks=marker,
                         #tooltip = {"placement": "bottom", "always_visible": False}
                         #updatemode='drag',  # to update instantly while dragging, else while releasing
                         step=1,  # only whole steps (whole day are relevant)
@@ -489,6 +540,15 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
     [State('date_rangeslider', 'marks')]
 )
 def update_rangeslider_marks(vals, marks):
+    """
+    Update the dateslider marks when selected, to have the correct color and text style
+    :param vals:
+    :type vals:
+    :param marks:
+    :type marks:
+    :return:
+    :rtype:
+    """
     for k in marks:
         if int(k) >= vals[0] and int(k) <= vals[1]:
             marks[str(k)]['style']['color'] = colors["text"]  # selected
@@ -511,20 +571,9 @@ def update_rangeslider_marks(vals, marks):
     prevent_initial_call=True
 )
 def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdown_value):
-    # year_range is a list with two numbers left and right value
-    # first get the timestamps as date (without time) as tempdf
-    tmp_df = global_df.copy()  # need a copy because the date is changed but we don't want to modify the original data
-    tmp_df[timecolumn] = tmp_df[timecolumn].dt.date
-
-    # translate the numbers from the slider to the dates then timedates
-    from_val = tmp_df[timecolumn].unique()[selected_year_range[0]]
-    to_val = tmp_df[timecolumn].unique()[selected_year_range[1]]
-    from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
-    to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
-    to_val = to_val + pd.Timedelta("23:59:59")
-
-    # filter the original df (with datetime not date) to contain only data within the selected dates
-    mask = (global_df[timecolumn] > from_val) & (global_df[timecolumn] < to_val)
+    # first get the transformed timestamps (as date or rounded to full hour)
+    flag, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, selected_year_range[0], selected_year_range[1])
     filtered_df = global_df.loc[mask]
 
     #
@@ -545,7 +594,7 @@ def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdo
     barfig.update_layout(transition_duration=200)
 
     # Update Cell line and bar figures
-    cell_line, cell_bar = create_mV_plots_per_cell_for_one_module(filtered_df, global_module_names, globa_cell_names, sel_module_id)
+    cell_line, cell_bar = create_mV_plots_per_cell_for_one_module(filtered_df, global_module_names, global_cell_names, sel_module_id)
     cell_line.update_layout(transition_duration=200)
     cell_bar.update_layout(transition_duration=200)
 
@@ -562,22 +611,13 @@ def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdo
 def update_cell_figures(sel_module_id, selected_year_range):
     # year_range is a list with two numbers left and right value
     # first get the timestamps as date (without time) as tempdf
-    tmp_df = global_df.copy()  # need a copy because the date is changed but we don't want to modify the original data
-    tmp_df[timecolumn] = tmp_df[timecolumn].dt.date
-
-    # translate the numbers from the slider to the dates then timedates
-    from_val = tmp_df[timecolumn].unique()[selected_year_range[0]]
-    to_val = tmp_df[timecolumn].unique()[selected_year_range[1]]
-    from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
-    to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
-    to_val = to_val + pd.Timedelta("23:59:59")
-
-    # filter the original df (with datetime not date) to contain only data within the selected dates
-    mask = (global_df[timecolumn] > from_val) & (global_df[timecolumn] < to_val)
+    # first get the transformed timestamps (as date or rounded to full hour)
+    flag, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, selected_year_range[0], selected_year_range[1])
     filtered_df = global_df.loc[mask]
 
     # Update Cell line and bar figures
-    cell_line, cell_bar = create_mV_plots_per_cell_for_one_module(filtered_df, global_module_names, globa_cell_names,
+    cell_line, cell_bar = create_mV_plots_per_cell_for_one_module(filtered_df, global_module_names, global_cell_names,
                                                                   sel_module_id)
     cell_line.update_layout(transition_duration=200)
     cell_bar.update_layout(transition_duration=200)
@@ -595,18 +635,9 @@ def update_cell_figures(sel_module_id, selected_year_range):
 def update_secondary_axis_in_lineplot(checkbox, dropdown_value, selected_year_range):
     # year_range is a list with two numbers left and right value
     # first get the timestamps as date (without time) as tempdf
-    tmp_df = global_df.copy()  # need a copy because the date is changed but we don't want to modify the original data
-    tmp_df[timecolumn] = tmp_df[timecolumn].dt.date
-
-    # translate the numbers from the slider to the dates then timedates
-    from_val = tmp_df[timecolumn].unique()[selected_year_range[0]]
-    to_val = tmp_df[timecolumn].unique()[selected_year_range[1]]
-    from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
-    to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
-    to_val = to_val + pd.Timedelta("23:59:59")
-
-    # filter the original df (with datetime not date) to contain only data within the selected dates
-    mask = (global_df[timecolumn] > from_val) & (global_df[timecolumn] < to_val)
+    # first get the transformed timestamps (as date or rounded to full hour)
+    flag, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, selected_year_range[0], selected_year_range[1])
     filtered_df = global_df.loc[mask]
 
     show_secondary_axis = False
@@ -625,6 +656,7 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, selected_year_ra
     Output('barfig', 'figure', allow_duplicate=True),
     Output("cell_line_fig", "figure", allow_duplicate=True),
     Output("cell_bar_fig", "figure", allow_duplicate=True),
+    Output('date_rangeslider', 'marks', allow_duplicate=True),
     Input("interval-component", "n_intervals"),
     State("date_rangeslider", "value"),
     State("secondary_y_checkbox", "value"),
@@ -633,21 +665,19 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, selected_year_ra
     prevent_initial_call=True
 )
 def refresh_all_graphs_on_interval(n, selected_year_range, checkbox, dropdown_value, sel_module_id):
-    tmp_df = global_df.copy()  # need a copy because the date is changed but we don't want to modify the original data
-    tmp_df[timecolumn] = tmp_df[timecolumn].dt.date
+    # Here the global df needs to be reloaded in order to update for current data
+    # even though callbacks shouldnt be used to update global vars, this probably is fince since its an interval
+    # todo maybe use a filesystem cache and a dc.store element as input for df in every callback, as alternative
+    # https://dash.plotly.com/sharing-data-between-callbacks
+    global global_df
+    global_df = read_data_as_df(filename)
 
-    # translate the numbers from the slider to the dates then timedates
-    from_val = tmp_df[timecolumn].unique()[selected_year_range[0]]
-    to_val = tmp_df[timecolumn].unique()[selected_year_range[1]]
-    from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
-    to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
-    to_val = to_val + pd.Timedelta("23:59:59")
-
-    # filter the original df (with datetime not date) to contain only data within the selected dates
-    mask = (global_df[timecolumn] > from_val) & (global_df[timecolumn] < to_val)
+    # first get the transformed timestamps (as date or rounded to full hour)
+    flag, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, selected_year_range[0], selected_year_range[1])
     filtered_df = global_df.loc[mask]
 
-    #
+    # Update the graphs
     show_secondary_axis = False
     use_delta = False
     if 'Show secondary y-axis' in checkbox:
@@ -665,11 +695,11 @@ def refresh_all_graphs_on_interval(n, selected_year_range, checkbox, dropdown_va
     barfig.update_layout(transition_duration=200)
 
     # Update Cell line and bar figures
-    cell_line, cell_bar = create_mV_plots_per_cell_for_one_module(filtered_df, global_module_names, globa_cell_names, sel_module_id)
+    cell_line, cell_bar = create_mV_plots_per_cell_for_one_module(filtered_df, global_module_names, global_cell_names, sel_module_id)
     cell_line.update_layout(transition_duration=200)
     cell_bar.update_layout(transition_duration=200)
 
-    return fig, barfig, cell_line, cell_bar
+    return fig, barfig, cell_line, cell_bar, marker
 
 
 # MAIN CODE THAT SHOULD ALSO RUN WHEN IMPORTING THE SCRIPT (into wsgi.py)
@@ -691,9 +721,10 @@ global_secondary_column_names = [x for x in df.columns if
                                  x not in cell_names + module_names + [timecolumn] and x[:6] != "Module"]
 global_df = df  # to have a global reference to use in callbacks
 global_module_names = module_names
-globa_cell_names = cell_names
+global_cell_names = cell_names
 
 create_app_layout(global_df, module_names, cell_names, global_secondary_column_names)
+
 
 #  __main__ means the script is executed directly and not imported
 if __name__ == "__main__":
@@ -710,10 +741,10 @@ if __name__ == "__main__":
     #app.run_server(debug=False, port=8050, dev_tools_hot_reload=False, host="0.0.0.0")
     #app.run_server()
 
-
-
     # Todo config file to change urls?
 
-# Other
+
+
+# Other ideas
 # cool 3D graph example: https://plotly.com/python/custom-buttons/
 # Change legend pos on callback: https://plotly.com/python/legend/?_ga=2.214419600.642079767.1682617466-1272301599.1682617466#legend-position

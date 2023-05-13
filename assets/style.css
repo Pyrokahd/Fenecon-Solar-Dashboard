@@ -44,7 +44,7 @@ body {
 #header_div {
     background-color: var(--div_BG);
     color: var(--fontcolor);
-    padding-left: 10px;
+    padding-left: 50px;
     padding-right: 200px;
     padding-top: 5px;
     padding-bottom: 10px;

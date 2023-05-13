@@ -15,8 +15,18 @@ def print_hi(name):
 def modlist(mylist):
     mylist.append("new val")
 
+def change(inp):
+    global globalstuff
+    globalstuff = inp
+
+globalstuff = "hi"
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+
+    print(globalstuff)
+    print("change")
+    change("test")
+    print(globalstuff)
 
     file = "fenecon_voltage_data.txt"
     #data_path = os.path.abspath(os.path.join(os.getcwd(), "..", "data"))  # current dir one back and then into data
@@ -30,11 +40,5 @@ if __name__ == '__main__':
     #f.close()
     #time.sleep(25)
     #print_hi('PyCharm')
-
-    fields=["col1","col2"]
-    with open("my.csv", "a", newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        # adding header
-        writer.writerow(fields)
 
 
