@@ -17,6 +17,7 @@ logging.info("done importing")
 
 # SETTINGS
 LOOP_TIME = 5  # time for one iteration in mins (when values are requestet and saved)
+NUMBER_MODULES = 10
 
 # https://docs.fenecon.de/de/_/latest/fems/glossar.html
 urls = ["http://x:user@192.168.1.229:8084/rest/channel/_sum/GridActivePower",
@@ -65,7 +66,7 @@ cell_voltage_urls = []
 # battery module 10 (0-9)
 # pro modul 14 zellen (0-13)
 # Creating API URLs based on Module and Cellnumber
-for i in range(10):  #Anzahl der Batteriemodule hier eintragen
+for i in range(NUMBER_MODULES):  #Anzahl der Batteriemodule hier eintragen
     for n in range(14):  # Cells per Module = 14
         if n < 10:
             cellnumber = "0"+str(n)
@@ -171,7 +172,7 @@ fields.append("Global Min")
 fields.append("Global Max")
 fields.append("Global Delta")
 # range(NUM_MODULES)
-for i in range(10):
+for i in range(NUMBER_MODULES):
     fields.append(f"Module_{i}")
 # CREATE EMPTY CSV FILE!
 with open(filename, "a", newline='') as csvfile:
