@@ -28,7 +28,7 @@ import threading
 app = dash.Dash(__name__, prevent_initial_callbacks="initial_duplicate")  # default: http://127.0.0.1:8050
 # Dash automatically loads CSS files that are in the assets folder
 
-
+VERSION = "0.2"
 filename: str = "fenecon_voltage_data.csv"   # "REP_fenecon_voltage_data_v5_test.csv"
 timecolumn = 'Zeitstempel'  # x-axis in most plots
 colors = {"background_plot": "#DEDEDE", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
@@ -170,7 +170,8 @@ def create_fig_express(df, module_names):
     return fig
 
 
-def create_fig_graphobject(df, module_names, add_secondary_y: bool = False, secondary_col: str = "Ladezustand [%]", use_delta=False):
+def create_fig_graphobject(df, module_names, add_secondary_y: bool = False, secondary_col: str = "Ladezustand [%]",
+                           use_delta=False, show_marker=False):
     # https://plotly.com/python/graph-objects/
     # https://plotly.com/python-api-reference/
 
@@ -180,9 +181,14 @@ def create_fig_graphobject(df, module_names, add_secondary_y: bool = False, seco
     else:
         fig = go.Figure()
 
+    if show_marker:
+        linemode = "lines+markers"
+    else:
+        linemode = "lines"
+
     # mV plot lines
     for name in module_names:
-        fig.add_trace(go.Scatter(x=df[timecolumn], y=df[name], mode='lines',
+        fig.add_trace(go.Scatter(x=df[timecolumn], y=df[name], mode=linemode,
                                  showlegend=True, line=dict(width=0.9), name=name,
                                  hovertemplate="%s<br>Date=%%{x}<br>mV=%%{y}<extra></extra>"%name
                                  ))
@@ -200,7 +206,7 @@ def create_fig_graphobject(df, module_names, add_secondary_y: bool = False, seco
             y_axis = df[secondary_col]
 
         fig.add_trace(
-            go.Scatter(x=df[timecolumn], y=y_axis, name=legend_name, mode="lines",
+            go.Scatter(x=df[timecolumn], y=y_axis, name=legend_name, mode=linemode,
                        line=dict(width=1.4, color="red", dash='dot'),
                        hovertemplate="%s<br>Date=%%{x}<br>value=%%{y}<extra></extra>"%secondary_col),
             secondary_y=True
@@ -253,6 +259,71 @@ def create_bar_fig(df, module_names):
     return fig
 
 
+def create_delta_overtime_fig(df, module_names, add_secondary_y: bool = False, secondary_col: str = "Ladezustand [%]",
+                              use_delta=False, show_marker=False):
+    if add_secondary_y:
+        fig = make_subplots(specs=[[{"secondary_y": True}]]) #, "r":-0.01}]])  # 1% weniger abstand zur legende
+    else:
+        fig = go.Figure()
+
+    if show_marker:
+        linemode = "lines+markers"
+    else:
+        linemode = "lines"
+
+    # get the lowest and highest value betwwen all modules at every timestep
+    # Add delta mV values (value between min mV and max mV over all modules) to df
+    tmp_df = df.copy()
+    tmp_df["absolute_delta"] = tmp_df[module_names].max(axis=1) - tmp_df[module_names].min(axis=1)
+
+    fig.add_trace(go.Scatter(x=tmp_df[timecolumn], y=tmp_df["absolute_delta"], mode=linemode,
+                             showlegend=True, line=dict(width=1.2), name="mV delta",  # line=dict(width=1.2, color="#26874a")
+                             hovertemplate="%s<br>Date=%%{x}<br>delta mV=%%{y}<extra></extra>"%"mV delta"
+                             ))
+    if add_secondary_y:
+        # handle too long names for legend
+        legend_name = secondary_col
+        if len(legend_name) > 15:
+            legend_name = legend_name.split(" ")[0]
+        if len(legend_name) > 15:
+            legend_name = "Secondary"
+
+        if use_delta:
+            y_axis = df[secondary_col].diff().fillna(0)
+        else:
+            y_axis = df[secondary_col]
+
+        fig.add_trace(
+            go.Scatter(x=df[timecolumn], y=y_axis, name=legend_name, mode=linemode,
+                       line=dict(width=1.4, color="red", dash='dot'),
+                       hovertemplate="%s<br>Date=%%{x}<br>value=%%{y}<extra></extra>"%secondary_col),
+            secondary_y=True
+        )
+        fig.update_yaxes(title_text=secondary_col, secondary_y=True, color="red")#, tickfont_family="Arial Black")
+        fig.update_yaxes(title_text="mV delta", secondary_y=False)
+        #fig.update_traces(marker=dict(size=3, line=dict(width=0, color='black')))
+    else:
+        # secondary_y only exists in subplots
+        fig.update_yaxes(title_text="mV delta")
+
+    fig.update_layout(legend_title_text="Modules")
+    fig.update_xaxes(title_text="Date")
+    fig.update_layout(legend_x=1)
+
+    # change colors
+    fig.update_layout(
+        plot_bgcolor=colors["background_plot"],
+        paper_bgcolor=colors["background_area"],
+        font_color=colors["text"],
+        margin=dict(l=GLOBAL_GRAPH_MARGINS["l"], r=GLOBAL_GRAPH_MARGINS["r"]+100, t=GLOBAL_GRAPH_MARGINS["t"],
+                    b=GLOBAL_GRAPH_MARGINS["b"]),
+        #title_text="The delta between the lowest module mV and the highest over time",
+        height=int(180),
+    )
+
+    return fig
+
+
 def create_headerdiv():
     header_text: str = '''
         # Fenecon Solar Panel Dashboard
@@ -263,6 +334,7 @@ def create_headerdiv():
         '''
 
     return html.Div([
+        html.Label("v"+VERSION),
         #html.Img(src=os.path.join("assets", "driller.PNG"), style={"width":"100px","height":"100px"}),
         dcc.Markdown(children=header_text)
     ], id="header_div", className="container")
@@ -288,10 +360,17 @@ def create_module_selection_div(module_names):
 def create_settingsdiv(secondary_column_names):
     return html.Div([
 
-        html.H3("Settings:", id="settings_label"),
+        html.H3("Secondary Axis Settings:", id="settings_label"),
 
-        dcc.Checklist(options=["Show secondary y-axis", "Use delta value"], id="secondary_y_checkbox",
-                      value=[], style={}),
+        html.Div([
+            dcc.Checklist(options=["Show secondary y-axis", "Use delta value"], id="secondary_y_checkbox",
+                          value=[], style={}),
+            # todo is there a way to directly adress the marker in the figs via callback and only change those (without new fig generation)?
+            dcc.Checklist(options=["Show line-marker"], id="showmarker_checkbox",
+                          value=[], style={}),
+
+        ],id="settings_checklist_div"),
+
 
         html.Label("Select secondary value", style={"padding-top":"10px"}),
         dcc.Dropdown(
@@ -492,7 +571,7 @@ def get_df_mask_from_rangeslider(flag, _rounded_df, _df_to_mask, minval, maxval)
     # no time added for hour since hour is rounded and not floored
     if flag == "hour":
         # add 1 hour -1 sec
-        to_val = to_val + pd.Timedelta("00:59:59")
+        to_val = to_val + pd.Timedelta("00:30:59")
     if flag == "day":
         # add 24h -1 sec
         to_val = to_val + pd.Timedelta("23:59:59")
@@ -519,6 +598,7 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
 
     fig = create_fig_graphobject(df, module_names)
     bar_fig = create_bar_fig(df, module_names)
+    delta_fig = create_delta_overtime_fig(df, module_names)
 
     app.layout = html.Div([
         create_headerdiv(),
@@ -543,6 +623,12 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
                         step=1,  # only whole steps (whole day are relevant)
                         id="date_rangeslider")
         ], id="rangeslider_div", className="div_class"),
+
+        html.Div([
+            html.H3("The delta, between the lowest module mV and the highest mV, over time:",
+                    style={"margin": f"10px 5px 2px {GLOBAL_GRAPH_MARGINS['l']}px"}),
+            dcc.Graph(id="delta_fig", figure=delta_fig)
+        ], id="delta_over_time_div", className="div_class"),
 
         html.Div([
 
@@ -593,29 +679,34 @@ def update_rangeslider_marks(vals, marks):
     Output('barfig', 'figure'),
     Output("cell_line_fig", "figure"),
     Output("cell_bar_fig", "figure"),
+    Output("delta_fig", "figure"),
     Input("date_rangeslider", "value"),
     State("module-dropdown", "value"),
     State("secondary_y_checkbox", "value"),
     State("secondary_y_dropdown", "value"),
+    State("showmarker_checkbox", "value"),
     prevent_initial_call=True
 )
-def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdown_value):
+def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdown_value, marker_checkbox):
     # first get the transformed timestamps (as date or rounded to full hour)
 
     flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(global_df)
     mask = get_df_mask_from_rangeslider(flag, tmp_df, global_df, selected_year_range[0], selected_year_range[1])
     filtered_df = global_df.loc[mask]
 
-    #
     show_secondary_axis = False
     use_delta = False
+    show_marker = False
+    if "Show line-marker" in marker_checkbox:
+        show_marker = True
     if 'Show secondary y-axis' in checkbox:
         show_secondary_axis = True
     if 'Use delta value' in checkbox:
         use_delta = True
 
     # Create new figure return that figure
-    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value, use_delta)
+    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value,
+                                 use_delta, show_marker)
     #fig.update_layout(legend_title_text="blabla")
     fig.update_layout(transition_duration=200)
 
@@ -628,7 +719,12 @@ def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdo
     cell_line.update_layout(transition_duration=200)
     cell_bar.update_layout(transition_duration=200)
 
-    return fig, barfig, cell_line, cell_bar
+    # Update delta fig
+    deltafig = create_delta_overtime_fig(filtered_df, global_module_names, show_secondary_axis, dropdown_value,
+                                         use_delta, show_marker)
+    deltafig.update_layout(transition_duration=200)
+
+    return fig, barfig, cell_line, cell_bar, deltafig
 
 
 @app.callback(
@@ -657,12 +753,14 @@ def update_cell_figures(sel_module_id, selected_year_range):
 
 @app.callback(
     Output("linefig", "figure", allow_duplicate=True),
+    Output("delta_fig", "figure", allow_duplicate=True),
     Input("secondary_y_checkbox", "value"),
     Input("secondary_y_dropdown", "value"),
+    Input("showmarker_checkbox", "value"),
     State("date_rangeslider", "value"),
     prevent_initial_call=True
 )
-def update_secondary_axis_in_lineplot(checkbox, dropdown_value, selected_year_range):
+def update_secondary_axis_in_lineplot(checkbox, dropdown_value, marker_checkbox, selected_year_range):
     # year_range is a list with two numbers left and right value
     # first get the timestamps as date (without time) as tempdf
     # first get the transformed timestamps (as date or rounded to full hour)
@@ -672,13 +770,23 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, selected_year_ra
 
     show_secondary_axis = False
     use_delta = False
+    show_marker = False
+    print(marker_checkbox)
+    if "Show line-marker" in marker_checkbox:
+        show_marker = True
     if 'Show secondary y-axis' in checkbox:
         show_secondary_axis = True
     if 'Use delta value' in checkbox:
         use_delta = True
 
-    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value, use_delta)
-    return fig
+    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value, use_delta,
+                                 show_marker)
+
+    # Update delta fig
+    deltafig = create_delta_overtime_fig(filtered_df, global_module_names, show_secondary_axis, dropdown_value,
+                                         use_delta, show_marker)
+
+    return fig, deltafig
 
 
 @app.callback(
@@ -687,14 +795,16 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, selected_year_ra
     Output("cell_line_fig", "figure", allow_duplicate=True),
     Output("cell_bar_fig", "figure", allow_duplicate=True),
     Output('date_rangeslider', 'marks', allow_duplicate=True),
+    Output("delta_fig", "figure", allow_duplicate=True),
     Input("interval-component", "n_intervals"),
     State("date_rangeslider", "value"),
     State("secondary_y_checkbox", "value"),
     State("secondary_y_dropdown", "value"),
+    State("showmarker_checkbox", "value"),
     State("module-dropdown", "value"),
     prevent_initial_call=True
 )
-def refresh_all_graphs_on_interval(n, selected_year_range, checkbox, dropdown_value, sel_module_id):
+def refresh_all_graphs_on_interval(n, selected_year_range, checkbox, dropdown_value, marker_checkbox, sel_module_id):
     # Here the global df needs to be reloaded in order to update for current data
     # even though callbacks shouldnt be used to update global vars, this probably is fince since its an interval
     # todo maybe use a filesystem cache and a dc.store element as input for df in every callback, as alternative
@@ -710,13 +820,17 @@ def refresh_all_graphs_on_interval(n, selected_year_range, checkbox, dropdown_va
     # Update the graphs
     show_secondary_axis = False
     use_delta = False
+    show_marker = False
+    if "Show line-marker" in marker_checkbox:
+        show_marker = True
     if 'Show secondary y-axis' in checkbox:
         show_secondary_axis = True
     if 'Use delta value' in checkbox:
         use_delta = True
 
     # Create new figure return that figure
-    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value, use_delta)
+    fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value,
+                                 use_delta, show_marker)
     #fig.update_layout(legend_title_text="blabla")
     fig.update_layout(transition_duration=200)
 
@@ -729,7 +843,12 @@ def refresh_all_graphs_on_interval(n, selected_year_range, checkbox, dropdown_va
     cell_line.update_layout(transition_duration=200)
     cell_bar.update_layout(transition_duration=200)
 
-    return fig, barfig, cell_line, cell_bar, marker
+    # Update delta fig
+    deltafig = create_delta_overtime_fig(filtered_df, global_module_names, show_secondary_axis, dropdown_value,
+                                         use_delta, show_marker)
+    deltafig.update_layout(transition_duration=200)
+
+    return fig, barfig, cell_line, cell_bar, marker, deltafig
 
 
 # MAIN CODE THAT SHOULD ALSO RUN WHEN IMPORTING THE SCRIPT (into wsgi.py)
@@ -764,12 +883,8 @@ if __name__ == "__main__":
 
     print("main running")
     logging.info("main running")
-    # to access ip adress of server where the app is running in the LAN, host='0.0.0.0'
-    # https://stackoverflow.com/questions/61678129/how-to-access-a-plotly-dash-app-server-via-lan
 
     app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
-    #app.run_server(debug=False, port=8050, dev_tools_hot_reload=False, host="0.0.0.0")
-    #app.run_server()
 
     # Todo config file to change urls?
 

@@ -44,7 +44,7 @@ body {
 #header_div {
     background-color: var(--div_BG);
     color: var(--fontcolor);
-    padding-left: 50px;
+    padding-left: 20px;
     padding-right: 200px;
     padding-top: 5px;
     padding-bottom: 10px;
@@ -114,7 +114,11 @@ body {
     flex-direction: column;
     /*align-items: flex-start;*/
     gap: 0px;
-
+}
+#settings_checklist_div{
+    display: flex;
+    flex-direction: row;
+    column-gap: 15px;
 }
 
 
