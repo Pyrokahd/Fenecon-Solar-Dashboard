@@ -51,8 +51,6 @@ In Linux the path is:
 `/var/lib/docker/volumes/`
 
 # Other info
-You can add `-rm` to the run command for docker to close the container when the application is closed.
-
 Show docker container:
 ```
 docker container ls
