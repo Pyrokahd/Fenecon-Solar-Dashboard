@@ -360,7 +360,7 @@ def create_module_selection_div(module_names):
 def create_settingsdiv(secondary_column_names):
     return html.Div([
 
-        html.H3("Secondary Axis Settings:", id="settings_label"),
+        html.H3("Settings:", id="settings_label"),
 
         html.Div([
             dcc.Checklist(options=["Show secondary y-axis", "Use delta value"], id="secondary_y_checkbox",
