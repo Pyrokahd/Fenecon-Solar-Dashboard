@@ -779,7 +779,6 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, marker_checkbox,
     show_secondary_axis = False
     use_delta = False
     show_marker = False
-    print(marker_checkbox)
     if "Show line-marker" in marker_checkbox:
         show_marker = True
     if 'Show secondary y-axis' in checkbox:
@@ -821,8 +820,6 @@ def interval_adjust_rangeslider(n):
     new_max = numdate[-1]
     value = [new_min, new_max]
 
-    print("new marker")
-    print(marker)
     return new_min, new_max, value, marker
 
 
@@ -845,8 +842,6 @@ def refresh_all_graphs_on_interval(_, selected_year_range, checkbox, dropdown_va
     # even though callbacks shouldnt be used to update global vars, this probably is fince since its an interval
     # todo maybe use a filesystem cache and a dc.store element as input for df in every callback, as alternative
     # https://dash.plotly.com/sharing-data-between-callbacks
-    print("REFRESH")
-    print(f"selected_year_range {selected_year_range}")
     logging.debug(f"refresh all graphs interval")
 
     # first get the transformed timestamps (as date or rounded to full hour)
