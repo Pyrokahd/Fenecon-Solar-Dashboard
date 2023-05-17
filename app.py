@@ -17,18 +17,22 @@ import numpy as np
 import matplotlib.dates as mdates
 import datetime
 import logging
-logging.basicConfig(filename='DashboardLog.log', encoding='utf-8', level=logging.DEBUG,
-                    format='app.py %(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 import time
 import threading
+
+data_path = os.path.abspath( os.path.join( os.path.dirname(os.path.realpath(__file__)), "data"))
+logging.basicConfig(filename=os.path.join(data_path, 'DashboardLog.log'), encoding='utf-8', level=logging.DEBUG,
+                    format='app.py %(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+
 # Typehint: https://docs.python.org/3/library/typing.html
 
 # initial callback duplicates need to be prevented
 app = dash.Dash(__name__, prevent_initial_callbacks="initial_duplicate")  # default: http://127.0.0.1:8050
 # Dash automatically loads CSS files that are in the assets folder
 
-VERSION = "0.2"
+VERSION = "0.2.1"
 filename: str = "fenecon_voltage_data.csv"   # "REP_fenecon_voltage_data_v5_test.csv"
 timecolumn = 'Zeitstempel'  # x-axis in most plots
 colors = {"background_plot": "#DEDEDE", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
@@ -518,11 +522,11 @@ def get_df_with_transformed_date_and_rangeslider_marker(_df):
     flag = "hour"
     df_new_time = _df.copy()
     difference = max(df_new_time[timecolumn]) - min(df_new_time[timecolumn])
-    if difference > pd.Timedelta(1, "d"):
+    if difference > pd.Timedelta(3, "d"):
         # reduce time timestamp resolution to per day basis
         df_new_time[timecolumn] = df_new_time[timecolumn].dt.date   # floors to closest day without time
         flag = "day"
-    elif difference > pd.Timedelta(1, "H"):
+    elif difference > pd.Timedelta(2, "H"):
         # timedelta.round(freq='H')
         df_new_time[timecolumn] = df_new_time[timecolumn].dt.round(freq="H")
         flag = "hour"
@@ -584,6 +588,10 @@ def get_df_mask_from_rangeslider(flag, _rounded_df, _df_to_mask, minval, maxval)
     return mask
 
 
+def serve_layout():
+    return create_app_layout(global_df, global_module_names, global_cell_names, global_secondary_column_names)
+
+
 def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
     """
     add html elements and figues to the dash app
@@ -600,11 +608,11 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
     bar_fig = create_bar_fig(df, module_names)
     delta_fig = create_delta_overtime_fig(df, module_names)
 
-    app.layout = html.Div([
+    return html.Div([
         create_headerdiv(),
         dcc.Interval(
             id='interval-component',
-            interval= 60 * 1000,  # in milliseconds
+            interval= 5 * 1000,  # in milliseconds
             n_intervals=0
         ),
 
@@ -790,13 +798,41 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, marker_checkbox,
 
 
 @app.callback(
+    Output('date_rangeslider', 'min'),
+    Output('date_rangeslider', 'max'),
+    Output('date_rangeslider', 'value'),
+    Output('date_rangeslider', 'marks', allow_duplicate=True),
+    Input("interval-component", "n_intervals")
+)
+def interval_adjust_rangeslider(n):
+    """
+    Update the rangeslider with possibly new data
+    This is then the input for the refresh_all_graphs_on_interval.
+    :return:
+    :rtype:
+    """
+    global global_df
+    global_df = read_data_as_df(filename)
+    logging.debug(f"load csv again, refresh interval {n}")
+
+    _, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
+    numdate = [x for x in range(len(tmp_df[timecolumn].unique()))]
+    new_min = numdate[0]
+    new_max = numdate[-1]
+    value = [new_min, new_max]
+
+    print("new marker")
+    print(marker)
+    return new_min, new_max, value, marker
+
+
+@app.callback(
     Output("linefig", "figure", allow_duplicate=True),
     Output('barfig', 'figure', allow_duplicate=True),
     Output("cell_line_fig", "figure", allow_duplicate=True),
     Output("cell_bar_fig", "figure", allow_duplicate=True),
-    Output('date_rangeslider', 'marks', allow_duplicate=True),
     Output("delta_fig", "figure", allow_duplicate=True),
-    Input("interval-component", "n_intervals"),
+    Input('date_rangeslider', 'marks'),
     State("date_rangeslider", "value"),
     State("secondary_y_checkbox", "value"),
     State("secondary_y_dropdown", "value"),
@@ -804,16 +840,17 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, marker_checkbox,
     State("module-dropdown", "value"),
     prevent_initial_call=True
 )
-def refresh_all_graphs_on_interval(n, selected_year_range, checkbox, dropdown_value, marker_checkbox, sel_module_id):
+def refresh_all_graphs_on_interval(_, selected_year_range, checkbox, dropdown_value, marker_checkbox, sel_module_id):
     # Here the global df needs to be reloaded in order to update for current data
     # even though callbacks shouldnt be used to update global vars, this probably is fince since its an interval
     # todo maybe use a filesystem cache and a dc.store element as input for df in every callback, as alternative
     # https://dash.plotly.com/sharing-data-between-callbacks
-    global global_df
-    global_df = read_data_as_df(filename)
+    print("REFRESH")
+    print(f"selected_year_range {selected_year_range}")
+    logging.debug(f"refresh all graphs interval")
 
     # first get the transformed timestamps (as date or rounded to full hour)
-    flag, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
+    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(global_df)
     mask = get_df_mask_from_rangeslider(flag, tmp_df, global_df, selected_year_range[0], selected_year_range[1])
     filtered_df = global_df.loc[mask]
 
@@ -848,7 +885,7 @@ def refresh_all_graphs_on_interval(n, selected_year_range, checkbox, dropdown_va
                                          use_delta, show_marker)
     deltafig.update_layout(transition_duration=200)
 
-    return fig, barfig, cell_line, cell_bar, marker, deltafig
+    return fig, barfig, cell_line, cell_bar, deltafig
 
 
 # MAIN CODE THAT SHOULD ALSO RUN WHEN IMPORTING THE SCRIPT (into wsgi.py)
@@ -872,8 +909,8 @@ global_df = df  # to have a global reference to use in callbacks
 global_module_names = module_names
 global_cell_names = cell_names
 
-create_app_layout(global_df, module_names, cell_names, global_secondary_column_names)
-
+#create_app_layout(global_df, global_module_names, global_cell_names, global_secondary_column_names)
+app.layout = serve_layout
 
 #  __main__ means the script is executed directly and not imported
 if __name__ == "__main__":
@@ -884,7 +921,7 @@ if __name__ == "__main__":
     print("main running")
     logging.info("main running")
 
-    app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
+    app.run_server(debug=False, port=8050, dev_tools_hot_reload=False)
 
     # Todo config file to change urls?
 
