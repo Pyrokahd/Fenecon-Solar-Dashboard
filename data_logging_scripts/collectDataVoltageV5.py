@@ -1,6 +1,6 @@
 #Abfrage der Messwerte FENECON Wechselrichter via REST API
 # Hier mit fester IP Adresse
-# Stand 08.05.2023
+
 import os
 import time
 import requests
