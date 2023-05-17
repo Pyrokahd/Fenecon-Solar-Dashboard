@@ -612,7 +612,7 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
         create_headerdiv(),
         dcc.Interval(
             id='interval-component',
-            interval= 5 * 1000,  # in milliseconds
+            interval= 120 * 1000,  # in milliseconds
             n_intervals=0
         ),
 
