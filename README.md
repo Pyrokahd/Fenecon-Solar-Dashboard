@@ -55,6 +55,10 @@ Show Images installed:
 ```
 docker image ls
 ```
+Show created volumes:
+```
+docker volume ls:
+```
 Show docker container:
 ```
 docker container ls
