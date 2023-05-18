@@ -51,6 +51,10 @@ In Linux the path is:
 `/var/lib/docker/volumes/`
 
 # Other info
+Show Images installed:
+```
+docker image ls
+```
 Show docker container:
 ```
 docker container ls
