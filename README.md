@@ -32,6 +32,7 @@ sudo sh get-docker.sh
 ```
 Other options on [docker docs](https://docs.docker.com/engine/install/ubuntu/). <br>
 Full raspberry docker installation guide [here](https://www.simplilearn.com/tutorials/docker-tutorial/raspberry-pi-docker).
+
 **2. Check installation** by running hello-world  <br>
 ```
 sudo docker run hello-world
