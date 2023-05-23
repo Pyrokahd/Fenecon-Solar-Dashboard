@@ -9,11 +9,11 @@ It primarly displays the average (average over all battery cells) voltage for ev
 [Troubleshooting](#Troubleshooting)  <br>
 
 
-There are two applications each is ruin as its own process or docker container:
+There are two applications each is run as its own process or docker container:
 - The data logging script at data_logging_Scripts/collectDataVoltageV5.py
 - the dashboard app (the files outside data_logging_scripts)
 
-The URLs in the data_collection_script (data_logging_Scripts/collectDataVoltageV5.py) may need to be changed depending on your battery modules ip addres.
+The URLs in the config.json and the number of modules may need to be changed depending on your battery module and it's ip address.
 
 ![biggif_example](/screenshots/dashboard1.png)
 
