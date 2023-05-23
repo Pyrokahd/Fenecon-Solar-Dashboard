@@ -4,11 +4,11 @@ It primarly displays the average (average over all battery cells) voltage for ev
 
 *Currently 10 modules are expected in the collection script. There is yet no config file to change it*
 
-[Installation Linux](## On Linux / raspberry pi)
-[Installation Windows](## On Windows)
-[Data Location](# file storage - Where is my data?)
-[Some docker commands](# Some docker commands "basic docker commands")
-[Troubleshooting](# Troubleshooting)
+[Installation Linux](##On-Linux-/-raspberry-pi)  <br>
+[Installation Windows](##On-Windows) <br>
+[Data Location](#file-storage---Where-is-my-data?) <br>
+[Some docker commands](#Some-docker-commands "basic docker commands")  <br>
+[Troubleshooting](#Troubleshooting)  <br>
 
 
 There are two applications each is ruin as its own process or docker container:
