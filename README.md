@@ -30,8 +30,8 @@ On the host machine:
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 ```
-Other options on [docker docs](https://docs.docker.com/engine/install/ubuntu/).
-
+Other options on [docker docs](https://docs.docker.com/engine/install/ubuntu/). <br>
+Full raspberry docker installation guide [here](https://www.simplilearn.com/tutorials/docker-tutorial/raspberry-pi-docker).
 **2. Check installation** by running hello-world  <br>
 ```
 sudo docker run hello-world
