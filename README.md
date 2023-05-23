@@ -218,8 +218,8 @@ The Ip adress is something like 192.168.1...
 # file storage - Where is my data?
 The created csv file is stored in the docker containers and shared on the volume. 
 
-Docker volumes can be found in windows (with WSL enabled - linux for **windows**) via the filebrowser \
-File browser enter: `\\wsl$\docker-desktop-data\data\docker\volumes`
+Docker volumes can be found in windows (with WSL enabled - linux for windows) via the filebrowser, \
+enter: `\\wsl$\docker-desktop-data\data\docker\volumes`
 
 In Linux the path is:
 `/var/lib/docker/volumes/`
