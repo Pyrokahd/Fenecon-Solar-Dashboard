@@ -10,6 +10,7 @@ from datetime import datetime
 #import explorerhat
 import numpy as np
 import logging
+import json
 
 
 # current dir and then into data
@@ -20,29 +21,32 @@ print("done importing")
 logging.info("done importing")
 
 # SETTINGS
-LOOP_TIME = 5  # time for one iteration in mins (when values are requestet and saved)
-NUMBER_MODULES = 10
+with open("config.json", "r") as f:
+    jsondata = json.loads(f.read())
+    LOOP_TIME = jsondata["collection_time"]  # time for one iteration in mins (when values are requestet and saved)
+    NUMBER_MODULES = jsondata["module_count"]
+    MODULE_IP = jsondata["batteryIP"]
 
 # https://docs.fenecon.de/de/_/latest/fems/glossar.html
-urls = ["http://x:user@192.168.1.229:8084/rest/channel/_sum/GridActivePower",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/GridBuyActiveEnergy",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/GridSellActiveEnergy",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/EssSoc",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/EssActivePower",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/EssActiveChargeEnergy",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/EssActiveDischargeEnergy",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/EssDcChargeEnergy",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/EssDcDischargeEnergy",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/EssCapacity",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/ProductionActivePower",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/ProductionAcActivePower",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/ProductionDcActualPower",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/ProductionActiveEnergy",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/ProductionAcActiveEnergy",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/ProductionDcActiveEnergy",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/ConsumptionActivePower",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/ConsumptionActiveEnergy",
-        "http://x:user@192.168.1.229:8084/rest/channel/_sum/State"]
+urls = [f"http://x:user@{MODULE_IP}/rest/channel/_sum/GridActivePower",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/GridBuyActiveEnergy",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/GridSellActiveEnergy",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/EssSoc",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/EssActivePower",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/EssActiveChargeEnergy",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/EssActiveDischargeEnergy",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/EssDcChargeEnergy",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/EssDcDischargeEnergy",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/EssCapacity",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/ProductionActivePower",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/ProductionAcActivePower",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/ProductionDcActualPower",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/ProductionActiveEnergy",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/ProductionAcActiveEnergy",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/ProductionDcActiveEnergy",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/ConsumptionActivePower",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/ConsumptionActiveEnergy",
+        f"http://x:user@{MODULE_IP}/rest/channel/_sum/State"]
 
 fields = ['Zeitstempel',
           'Netzbezug(positiv)/Einspeisung(negativ) [W]',
@@ -77,7 +81,7 @@ for i in range(NUMBER_MODULES):  #Anzahl der Batteriemodule hier eintragen
             #print("Cell=", cellnumber)
         else:
             cellnumber = n
-        temp_url = f"http://x:user@192.168.1.229:8084/rest/channel/battery0/Tower0Module{i}Cell0{cellnumber}Voltage"
+        temp_url = f"http://x:user@{MODULE_IP}/rest/channel/battery0/Tower0Module{i}Cell0{cellnumber}Voltage"
         temp_header = f"Voltage Module{i} Cell0{cellnumber}"  # in mV
         
         urls.append(temp_url)
