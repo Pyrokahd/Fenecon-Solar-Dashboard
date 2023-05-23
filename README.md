@@ -4,8 +4,8 @@ It primarly displays the average (average over all battery cells) voltage for ev
 
 *Currently 10 modules are expected in the collection script. There is yet no config file to change it*
 
-[Installation Linux](##on-Linux-/-raspberry-pi)  <br>
-[Installation Windows](##on-windows) <br>
+[Installation Linux](#on-Linux-/-raspberry-pi)  <br>
+[Installation Windows](#on-windows) <br>
 [Data Location](#file-storage---where-is-my-data) <br>
 [Some docker commands](#Some-docker-commands "basic docker commands")  <br>
 [Troubleshooting](#Troubleshooting)  <br>
