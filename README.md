@@ -4,6 +4,13 @@ It primarly displays the average (average over all battery cells) voltage for ev
 
 *Currently 10 modules are expected in the collection script. There is yet no config file to change it*
 
+[Installation Linux](## On Linux / raspberry pi)
+[Installation Windows](## On Windows)
+[Data Location](# file storage - Where is my data?)
+[Some docker commands](# Some docker commands "basic docker commands")
+[Troubleshooting](# Troubleshooting)
+
+
 There are two applications each is ruin as its own process or docker container:
 - The data logging script at data_logging_Scripts/collectDataVoltageV5.py
 - the dashboard app (the files outside data_logging_scripts)
@@ -136,7 +143,6 @@ To install linux screen on the host machine use `sudo apt-get install screen`.
 
 
 
-
 ## On Windows
 **1. Enable WSL**
 See [Microsoft WSL installation Guide](https://learn.microsoft.com/en-us/windows/wsl/install)
@@ -217,7 +223,7 @@ File browser enter: `\\wsl$\docker-desktop-data\data\docker\volumes`
 In Linux the path is:
 `/var/lib/docker/volumes/`
 
-# Other info
+# Some docker commands
 Show Images installed:
 ```
 docker image ls
@@ -236,6 +242,6 @@ docker stop <Container_ID> docker rm <Container_ID>
 ```
 
 # Troubleshooting
-If the dashboard server is not running after 5 minutes, remove the docker container running it (see section **Other info**). Then recreate and run the container with the docker run command in the installation guide. 
+If the dashboard server is not running after 5 minutes, remove the docker container running it (see section **Some docker commands**). Then recreate and run the container with the docker run command in the installation guide. 
 
 If this doesn't help you can check if the csv file has been generated or not (section **file storage**). If there is a csv file then the server should run unless the connection is somehow prevented.
