@@ -65,7 +65,7 @@ static ip_address=[STATIC IP ADDRESS YOU WANT]/24
 
 4. save and close the file, restart the raspberry
 
-Interface is either wlan0 or eth0 depending on wifi or ethernet connection.
+Interface is either wlan0 or eth0 depending on wifi or ethernet connection. <br>
 Example:
 ```
 interface eth0
