@@ -221,7 +221,7 @@ The created csv file is stored in the docker containers and shared on the volume
 Docker volumes can be found in windows (with WSL enabled - linux for windows) via the filebrowser, \
 enter: `\\wsl$\docker-desktop-data\data\docker\volumes`
 
-In Linux the path is:
+In Linux the path is (you need admin/root rights):
 `/var/lib/docker/volumes/`
 
 # Some docker commands
