@@ -15,6 +15,73 @@ The URLs in the data_collection_script (data_logging_Scripts/collectDataVoltageV
 ![biggif_example](/screenshots/dashboard2.png)
 
 # deploying using docker
+On the host machine:
+
+## On Linux / raspberry pi
+**1. install docker** (here with convenience script)
+```
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+```
+Other options on [docker docs](https://docs.docker.com/engine/install/ubuntu/).
+
+**2. Check installation** by running hello-world
+```
+sudo docker run hello-world
+```
+
+**3. Clone this repository** (git should be preinstalled in most linux systems)
+navigate to a target directory then:
+```
+git clone https://github.com/Pyrokahd/Fenecon-Solar-Dashboard.git
+```
+
+### Start data collections script
+**1. Open a terminal**
+**2. Navigate to data_logging_scripts directory** in this repo (...\Fenecon-Solar-Dashboard\data_logging_scripts)
+**3. Change API URL to your battery tower**
+Open the config.json file and adjust the IP address to your local adress from your battery tower.
+**4. Create docker image** 
+```
+docker build -t datacollection-docker .
+```
+**5. Create a docker Volume** (to persistently save the data outside a docker container)
+```
+docker volume create fenDataVolume
+```
+**6. Run image in a docker container** (with mounted volume)
+```
+docker run --mount source=fenDataVolume,destination=/app/data datacollection-docker
+```
+
+### Start Dashboard server
+**1. Open a new terminal**
+**2. Navigate to this repo** (...\Fenecon-Solar-Dashboard)
+**3. Create docker image** 
+```
+docker build -t fdashboard-docker .
+```
+**4. Create a docker Volume** (should already be there from step 4 in the previous section, but calling it twice doesn't hurt)
+```
+docker volume create fenDataVolume
+```
+**5. Run image in a docker container** (with access to port 80 and with mounted volume)
+```
+docker run --publish 80:80 --mount source=fenDataVolume,destination=/app/data fdashboard-docker
+```
+**6. Wait 4 minutes** (The data collection first needs to create the csv file by making API requests)
+**7. check your local ip adress
+In a new Terminal enter:
+```
+ifconfig
+```
+The Ip adress is something like 192.168.1...
+**8. Enter that IP adress into a browser** on a machine connected to the same network
+
+
+## On Windows
+
+
 1. install docker on target computer
 2. clone this repo
 3. Open two consoles (one for every process)
