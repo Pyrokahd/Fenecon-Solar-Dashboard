@@ -165,8 +165,9 @@ sudo docker run hello-world
 
 **2. Navigate to data_logging_scripts directory** in this repo (...\Fenecon-Solar-Dashboard\data_logging_scripts)  <br>
 
-**3. Change API URL to your battery tower**  <br>
-Open the config.json file and adjust the IP address to your local adress from your battery tower.
+**3. Change API URL and amount of modules to your battery tower**  <br>
+Open the config.json file and adjust the IP address (batteryIP) to your local adress from your battery tower, including the port.  <br>
+Also adjust the number of modules (module_count) to the correct amount.
 
 **4. Create docker image**   <br>
 ```
