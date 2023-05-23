@@ -47,8 +47,8 @@ Enter in a terminal
 ip r
 grep "namesever" /etc/resolv.conf
 ```
-The router IP is the first ip after "default via".
-The DNS IP is the IP from the second command.
+The **ROUTER IP** is the first ip after "default via".
+The **DNS IP** is the IP from the second command.
 
 2. Edit dhcpcd.conf  <br>
 ```
@@ -66,6 +66,13 @@ static ip_address=[STATIC IP ADDRESS YOU WANT]/24
 4. save and close the file, restart the raspberry
 
 Interface is either wlan0 or eth0 depending on wifi or ethernet connection.
+Example:
+```
+interface eth0
+static_routers=192.168.1.1
+static domain_name_servers=192.168.1.1
+static ip_address=192.168.1.200/24
+```
 
 
 ### Start data collections script
