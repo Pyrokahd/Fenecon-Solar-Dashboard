@@ -6,7 +6,7 @@ It primarly displays the average (average over all battery cells) voltage for ev
 
 [Installation Linux](##On-Linux-/-raspberry-pi)  <br>
 [Installation Windows](##On-Windows) <br>
-[Data Location](#file-storage---Where-is-my-data?) <br>
+[Data Location](#file-storage-Where-is-my-data?) <br>
 [Some docker commands](#Some-docker-commands "basic docker commands")  <br>
 [Troubleshooting](#Troubleshooting)  <br>
 
