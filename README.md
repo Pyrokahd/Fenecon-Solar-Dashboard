@@ -13,7 +13,7 @@ There are two applications each is run as its own process or docker container:
 - The data logging script at data_logging_Scripts/collectDataVoltageV5.py
 - the dashboard app (the files outside data_logging_scripts)
 
-The URLs in the config.json and the number of modules may need to be changed depending on your battery module and it's ip address.
+The IP and the number of modules in the config.json may need to be changed depending on your battery module and it's ip address.
 
 ![biggif_example](/screenshots/dashboard1.png)
 
