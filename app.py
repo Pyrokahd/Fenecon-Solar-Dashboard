@@ -32,7 +32,7 @@ logging.basicConfig(filename=os.path.join(data_path, 'DashboardLog.log'), encodi
 app = dash.Dash(__name__, prevent_initial_callbacks="initial_duplicate")  # default: http://127.0.0.1:8050
 # Dash automatically loads CSS files that are in the assets folder
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 filename: str = "fenecon_voltage_data.csv"   # "REP_fenecon_voltage_data_v5_test.csv"
 timecolumn = 'Zeitstempel'  # x-axis in most plots
 colors = {"background_plot": "#DEDEDE", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
@@ -522,7 +522,7 @@ def get_df_with_transformed_date_and_rangeslider_marker(_df):
     flag = "hour"
     df_new_time = _df.copy()
     difference = max(df_new_time[timecolumn]) - min(df_new_time[timecolumn])
-    if difference > pd.Timedelta(3, "d"):
+    if difference > pd.Timedelta(2, "d"):
         # reduce time timestamp resolution to per day basis
         df_new_time[timecolumn] = df_new_time[timecolumn].dt.date   # floors to closest day without time
         flag = "day"
@@ -864,21 +864,16 @@ def refresh_all_graphs_on_interval(_, selected_year_range, checkbox, dropdown_va
     fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value,
                                  use_delta, show_marker)
     #fig.update_layout(legend_title_text="blabla")
-    fig.update_layout(transition_duration=200)
 
     # Update Avg Bar plot
     barfig = create_bar_fig(filtered_df, global_module_names)
-    barfig.update_layout(transition_duration=200)
 
     # Update Cell line and bar figures
     cell_line, cell_bar = create_mV_plots_per_cell_for_one_module(filtered_df, global_module_names, global_cell_names, sel_module_id)
-    cell_line.update_layout(transition_duration=200)
-    cell_bar.update_layout(transition_duration=200)
 
     # Update delta fig
     deltafig = create_delta_overtime_fig(filtered_df, global_module_names, show_secondary_axis, dropdown_value,
                                          use_delta, show_marker)
-    deltafig.update_layout(transition_duration=200)
 
     return fig, barfig, cell_line, cell_bar, deltafig
 
