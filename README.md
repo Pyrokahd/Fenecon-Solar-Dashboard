@@ -15,8 +15,9 @@ The URLs in the data_collection_script (data_logging_Scripts/collectDataVoltageV
 ![biggif_example](/screenshots/dashboard2.png)
 
 # deploying using docker
-On the host machine:
+I recommend using a raspberry pi, as both the data collection script and the dashboard server are supposed to run permanent.
 
+On the host machine:
 ## On Linux / raspberry pi
 **1. install docker** (here with convenience script)  <br>
 ```
@@ -81,7 +82,7 @@ docker run --publish 80:80 --mount source=fenDataVolume,destination=/app/data fd
 
 **6. Wait 4 minutes** (The data collection first needs to create the csv file by making API requests)  <br>
 
-**7. check your local ip adress  <br>
+**7. check your local ip adress**  <br>
 In a new Terminal enter:
 ```
 ifconfig
@@ -112,7 +113,7 @@ The DNS IP is the IP from the second command.
 nano /etc/dhcpcd.conf
 ```
 
-3. Add the following lines
+3. Add the following lines at the end
 ```
 interface [INTERFACE]
 static_routers=[ROUTER IP]
@@ -126,35 +127,77 @@ Interface is either wlan0 or eth0 depending on wifi or ethernet connection.
 
 
 ## On Windows
-**1. 
+**1. Enable WSL**
+See [Microsoft WSL installation Guide](https://learn.microsoft.com/en-us/windows/wsl/install)
 
-1. install docker on target computer
-2. clone this repo
-3. Open two consoles (one for every process)
+**2. Install docker desktop**
+[Docker installation guide](https://docs.docker.com/desktop/install/windows-install/)
 
-## data collection
-1. Navigate to data_logging_scripts in this repo (...\Fenecon-Solar-Dashboard\data_logging_scripts)
-3. create image
-`docker build -t datacollection-docker .`
-3. create volume (for persistent data)
-`docker volume create fenDataVolume`
-4. run as container
-`docker run --mount source=fenDataVolume,destination=/app/data datacollection-docker`
+**3. Restart your computer**
 
-It collects the current data every 5 minutes via the API.
+**4. Check installation** by running hello-world  <br>
+In a terminal enter:
+```
+sudo docker run hello-world
+```
 
-## dashboard
-1. Navigate to this repo (...\Fenecon-Solar-Dashboard)
-2. create image
-`docker build -t fdashboard-docker .`
-3. create volume (for persistent data)
-`docker volume create fenDataVolume`
-4. run as container (on port 80)
-`docker run --publish 80:80 --mount source=fenDataVolume,destination=/app/data fdashboard-docker`
-5. look up the local ip address of that computer
-6. Enter that url on port 80 into the browser (example: http://192.168.1.47:80/)
+**5. Download this Repo as ZIP, unzip at target directory**
 
-## file storage
+### Start data collections script
+**1. Open a terminal**  <br>
+
+**2. Navigate to data_logging_scripts directory** in this repo (...\Fenecon-Solar-Dashboard\data_logging_scripts)  <br>
+
+**3. Change API URL to your battery tower**  <br>
+Open the config.json file and adjust the IP address to your local adress from your battery tower.
+
+**4. Create docker image**   <br>
+```
+docker build -t datacollection-docker .
+```
+
+**5. Create a docker Volume** (to persistently save the data outside a docker container)  <br>
+```
+docker volume create fenDataVolume
+```
+
+**6. Run image in a docker container** (with mounted volume)  <br>
+```
+docker run --mount source=fenDataVolume,destination=/app/data datacollection-docker
+```
+
+### Start Dashboard server
+**1. Open a new terminal** <br>
+
+**2. Navigate to this repo** (...\Fenecon-Solar-Dashboard)  <br>
+
+**3. Create docker image**   <br>
+```
+docker build -t fdashboard-docker .
+```
+
+**4. Create a docker Volume** (should already be there from step 4 in the previous section, but calling it twice doesn't hurt)  <br>
+```
+docker volume create fenDataVolume
+```
+
+**5. Run image in a docker container** (with access to port 80 and with mounted volume)  <br>
+```
+docker run --publish 80:80 --mount source=fenDataVolume,destination=/app/data fdashboard-docker
+```
+
+**6. Wait 4 minutes** (The data collection first needs to create the csv file by making API requests)  <br>
+
+**7. check your local ip adress**  <br>
+In a new Terminal enter:
+```
+ipconfig
+```
+The Ip adress is something like 192.168.1...
+
+**8. Enter that IP adress into a browser** on a machine connected to the same network  <br>
+
+# file storage - Where is my data?
 The created csv file is stored in the docker containers and shared on the volume. 
 
 Docker volumes can be found in windows (with WSL enabled - linux for **windows**) via the filebrowser \
