@@ -2,8 +2,6 @@
 A web app for logging and displaying solar voltage values for a fenecon solar collector system. \
 It primarly displays the average (average over all battery cells) voltage for every battery module. Every module has 14 cells. These values are collected from the battery tower using the fenecon API and then stored in a csv file.
 
-*Currently 10 modules are expected in the collection script. There is yet no config file to change it*
-
 [Installation Linux/RaspberryPi](#on-linux--raspberry-pi)  <br>
 [Installation Windows](#on-windows) <br>
 [Data Location](#file-storage---where-is-my-data) <br>
@@ -87,8 +85,9 @@ static ip_address=192.168.1.200/24
 
 **2. Navigate to data_logging_scripts directory** in this repo (...\Fenecon-Solar-Dashboard\data_logging_scripts)  <br>
 
-**3. Change API URL to your battery tower**  <br>
-Open the config.json file and adjust the IP address to your local adress from your battery tower.
+**3. Change API URL and amount of modules to your battery tower**  <br>
+Open the config.json file and adjust the IP address (batteryIP) to your local adress from your battery tower, including the port.  <br>
+Also adjust the number of modules (module_count) to the correct amount.
 
 **4. Create docker image**   <br>
 ```
