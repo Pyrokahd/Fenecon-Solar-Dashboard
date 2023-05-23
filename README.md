@@ -19,6 +19,7 @@ I recommend using a raspberry pi, as both the data collection script and the das
 
 On the host machine:
 ## On Linux / raspberry pi
+
 **1. install docker** (here with convenience script)  <br>
 ```
 curl -fsSL https://get.docker.com -o get-docker.sh
@@ -36,6 +37,36 @@ navigate to a target directory then:
 ```
 git clone https://github.com/Pyrokahd/Fenecon-Solar-Dashboard.git
 ```
+
+### Setting a static IP for your raspberry pi
+If the server is a raspberry pi (i am using a raspberry pi 4) then you might want to set a static ip adress for it:
+
+1. Get Router IP and DNS IP   <br>
+Enter in a terminal
+```
+ip r
+grep "namesever" /etc/resolv.conf
+```
+The router IP is the first ip after "default via".
+The DNS IP is the IP from the second command.
+
+2. Edit dhcpcd.conf  <br>
+```
+nano /etc/dhcpcd.conf
+```
+
+3. Add the following lines at the end
+```
+interface [INTERFACE]
+static_routers=[ROUTER IP]
+static domain_name_servers=[DNS IP]
+static ip_address=[STATIC IP ADDRESS YOU WANT]/24
+```
+
+4. save and close the file, restart the raspberry
+
+Interface is either wlan0 or eth0 depending on wifi or ethernet connection.
+
 
 ### Start data collections script
 **1. Open a terminal**  <br>
@@ -96,34 +127,7 @@ When using SSH to connect to the host machine (in example a raspberry pi) make s
 So you open a terminal on your computer, connect to the raspberry or linux machine via SSH, then you run the commands and before the docker run command enter a screen. This way you can close the terminal on your computer without interrupting the running programs (docker container).
 To install linux screen on the host machine use `sudo apt-get install screen`.
 
-### Setting a static IP for your raspberry pi
-If the server is a raspberry pi (i am using a raspberry pi 4) then you might want to set a static ip adress for it:
 
-1. Get Router IP and DNS IP   <br>
-Enter in a terminal
-```
-ip r
-grep "namesever" /etc/resolv.conf
-```
-The router IP is the first ip after "default via".
-The DNS IP is the IP from the second command.
-
-2. Edit dhcpcd.conf  <br>
-```
-nano /etc/dhcpcd.conf
-```
-
-3. Add the following lines at the end
-```
-interface [INTERFACE]
-static_routers=[ROUTER IP]
-static domain_name_servers=[DNS IP]
-static ip_address=[STATIC IP ADDRESS YOU WANT]/24
-```
-
-4. save and close the file, restart the raspberry
-
-Interface is either wlan0 or eth0 depending on wifi or ethernet connection.
 
 
 ## On Windows
