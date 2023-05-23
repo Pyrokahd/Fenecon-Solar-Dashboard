@@ -155,7 +155,7 @@ See [Microsoft WSL installation Guide](https://learn.microsoft.com/en-us/windows
 **4. Check installation** by running hello-world  <br>
 In a terminal enter:
 ```
-sudo docker run hello-world
+docker run hello-world
 ```
 
 **5. Download this Repo as ZIP, unzip at target directory**
