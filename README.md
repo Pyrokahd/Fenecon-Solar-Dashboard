@@ -18,69 +18,115 @@ The URLs in the data_collection_script (data_logging_Scripts/collectDataVoltageV
 On the host machine:
 
 ## On Linux / raspberry pi
-**1. install docker** (here with convenience script)
+**1. install docker** (here with convenience script)  <br>
 ```
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 ```
 Other options on [docker docs](https://docs.docker.com/engine/install/ubuntu/).
 
-**2. Check installation** by running hello-world
+**2. Check installation** by running hello-world  <br>
 ```
 sudo docker run hello-world
 ```
 
-**3. Clone this repository** (git should be preinstalled in most linux systems)
+**3. Clone this repository** (git should be preinstalled in most linux systems)  <br>
 navigate to a target directory then:
 ```
 git clone https://github.com/Pyrokahd/Fenecon-Solar-Dashboard.git
 ```
 
 ### Start data collections script
-**1. Open a terminal**
-**2. Navigate to data_logging_scripts directory** in this repo (...\Fenecon-Solar-Dashboard\data_logging_scripts)
-**3. Change API URL to your battery tower**
+**1. Open a terminal**  <br>
+
+**2. Navigate to data_logging_scripts directory** in this repo (...\Fenecon-Solar-Dashboard\data_logging_scripts)  <br>
+
+**3. Change API URL to your battery tower**  <br>
 Open the config.json file and adjust the IP address to your local adress from your battery tower.
-**4. Create docker image** 
+
+**4. Create docker image**   <br>
 ```
 docker build -t datacollection-docker .
 ```
-**5. Create a docker Volume** (to persistently save the data outside a docker container)
+
+**5. Create a docker Volume** (to persistently save the data outside a docker container)  <br>
 ```
 docker volume create fenDataVolume
 ```
-**6. Run image in a docker container** (with mounted volume)
+
+**6. Run image in a docker container** (with mounted volume)  <br>
 ```
 docker run --mount source=fenDataVolume,destination=/app/data datacollection-docker
 ```
 
 ### Start Dashboard server
-**1. Open a new terminal**
-**2. Navigate to this repo** (...\Fenecon-Solar-Dashboard)
-**3. Create docker image** 
+**1. Open a new terminal** <br>
+
+**2. Navigate to this repo** (...\Fenecon-Solar-Dashboard)  <br>
+
+**3. Create docker image**   <br>
 ```
 docker build -t fdashboard-docker .
 ```
-**4. Create a docker Volume** (should already be there from step 4 in the previous section, but calling it twice doesn't hurt)
+
+**4. Create a docker Volume** (should already be there from step 4 in the previous section, but calling it twice doesn't hurt)  <br>
 ```
 docker volume create fenDataVolume
 ```
-**5. Run image in a docker container** (with access to port 80 and with mounted volume)
+
+**5. Run image in a docker container** (with access to port 80 and with mounted volume)  <br>
 ```
 docker run --publish 80:80 --mount source=fenDataVolume,destination=/app/data fdashboard-docker
 ```
-**6. Wait 4 minutes** (The data collection first needs to create the csv file by making API requests)
-**7. check your local ip adress
+
+**6. Wait 4 minutes** (The data collection first needs to create the csv file by making API requests)  <br>
+
+**7. check your local ip adress  <br>
 In a new Terminal enter:
 ```
 ifconfig
 ```
 The Ip adress is something like 192.168.1...
-**8. Enter that IP adress into a browser** on a machine connected to the same network
+
+**8. Enter that IP adress into a browser** on a machine connected to the same network  <br>
+
+### Note: Installation via SSH
+When using SSH to connect to the host machine (in example a raspberry pi) make sure to run the **docker run ...** commands in a virtual terminal like [Linux screen](https://linux.die.net/man/1/screen). 
+So you open a terminal on your computer, connect to the raspberry or linux machine via SSH, then you run the commands and before the docker run command enter a screen. This way you can close the terminal on your computer without interrupting the running programs (docker container).
+To install linux screen on the host machine use `sudo apt-get install screen`.
+
+### Setting a static IP for your raspberry pi
+If the server is a raspberry pi (i am using a raspberry pi 4) then you might want to set a static ip adress for it:
+
+1. Get Router IP and DNS IP   <br>
+Enter in a terminal
+```
+ip r
+grep "namesever" /etc/resolv.conf
+```
+The router IP is the first ip after "default via".
+The DNS IP is the IP from the second command.
+
+2. Edit dhcpcd.conf  <br>
+```
+nano /etc/dhcpcd.conf
+```
+
+3. Add the following lines
+```
+interface [INTERFACE]
+static_routers=[ROUTER IP]
+static domain_name_servers=[DNS IP]
+static ip_address=[STATIC IP ADDRESS YOU WANT]/24
+```
+
+4. save and close the file, restart the raspberry
+
+Interface is either wlan0 or eth0 depending on wifi or ethernet connection.
 
 
 ## On Windows
-
+**1. 
 
 1. install docker on target computer
 2. clone this repo
@@ -136,4 +182,6 @@ docker stop <Container_ID> docker rm <Container_ID>
 ```
 
 # Troubleshooting
-There seems to be an issue when starting the dashboard before the csv is generated by the dataCollectionScript. It helps to wait about 5 min before starting the container with the dashboard app. Or restart the dashboard container if site does not load or loads but does not display data. (If there is only 1 data row collected, it may look like there is no data displayer)
+If the dashboard server is not running after 5 minutes, remove the docker container running it (see section **Other info**). Then recreate and run the container with the docker run command in the installation guide. 
+
+If this doesn't help you can check if the csv file has been generated or not (section **file storage**). If there is a csv file then the server should run unless the connection is somehow prevented.
