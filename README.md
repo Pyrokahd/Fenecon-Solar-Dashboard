@@ -112,7 +112,7 @@ docker run --mount source=fenDataVolume,destination=/app/data datacollection-doc
 **2. Navigate to this repo** (...\Fenecon-Solar-Dashboard)  <br>
 
 **3. Create docker image**   <br>
-(this may take even more time like 1300+ seconds)
+(this may take even more time)
 ```
 docker build -t fdashboard-docker .
 ```
