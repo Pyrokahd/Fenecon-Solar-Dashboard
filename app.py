@@ -945,7 +945,7 @@ if __name__ == "__main__":
     print("main running")
     logging.info("main running")
 
-    app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
+    app.run_server(debug=False, port=8050, dev_tools_hot_reload=False)
 
 
 
