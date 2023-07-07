@@ -91,6 +91,7 @@ Open the config.json file and adjust the IP address (batteryIP) to your local ad
 Also adjust the number of modules (module_count) to the correct amount.
 
 **4. Create docker image**   <br>
+(this may take some time)
 ```
 docker build -t datacollection-docker .
 ```
@@ -111,6 +112,7 @@ docker run --mount source=fenDataVolume,destination=/app/data datacollection-doc
 **2. Navigate to this repo** (...\Fenecon-Solar-Dashboard)  <br>
 
 **3. Create docker image**   <br>
+(this may take even more time like 1300+ seconds)
 ```
 docker build -t fdashboard-docker .
 ```
