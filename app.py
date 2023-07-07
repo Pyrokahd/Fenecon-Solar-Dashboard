@@ -12,6 +12,7 @@ from plotly.subplots import make_subplots  # Make Subplots with go https://plotl
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from pandas.tseries.offsets import MonthEnd
 import os
 import numpy as np
 import matplotlib.dates as mdates
@@ -28,6 +29,8 @@ data_path = os.path.abspath( os.path.join( os.path.dirname(os.path.realpath(__fi
 logging.basicConfig(filename=os.path.join(data_path, 'DashboardLog.log'), level=logging.DEBUG,
                     format='app.py %(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
+# TODO use plotly-resampler for faster graph generation (prefered with chaching so it is user independent)
+#  https://github.com/predict-idlab/plotly-resampler/blob/main/examples/dash_apps/01_minimal_global.py
 
 # Typehint: https://docs.python.org/3/library/typing.html
 
@@ -509,7 +512,7 @@ def create_correlation_div(_df):
         dcc.Graph(id="correlation_div", figure=fig)
     ], id="correlation_row_div", className="div_class", style={'display': 'flex', 'flex-direction': 'row'})
 
-from pandas.tseries.offsets import MonthEnd
+
 def get_df_with_transformed_date_and_rangeslider_marker(_df):
     """
     Returns a flag, the edited dataframe and a marker for the rangeslider.
