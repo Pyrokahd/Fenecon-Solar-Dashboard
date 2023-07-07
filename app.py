@@ -22,7 +22,10 @@ import time
 import threading
 
 data_path = os.path.abspath( os.path.join( os.path.dirname(os.path.realpath(__file__)), "data"))
-logging.basicConfig(filename=os.path.join(data_path, 'DashboardLog.log'), encoding='utf-8', level=logging.DEBUG,
+#logging.basicConfig(filename=os.path.join(data_path, 'DashboardLog.log'), encoding='utf-8', level=logging.DEBUG,
+#                    format='app.py %(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+logging.basicConfig(filename=os.path.join(data_path, 'DashboardLog.log'), level=logging.DEBUG,
                     format='app.py %(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 
@@ -32,7 +35,7 @@ logging.basicConfig(filename=os.path.join(data_path, 'DashboardLog.log'), encodi
 app = dash.Dash(__name__, prevent_initial_callbacks="initial_duplicate")  # default: http://127.0.0.1:8050
 # Dash automatically loads CSS files that are in the assets folder
 
-VERSION = "0.2.2"
+VERSION = "0.2.3"
 filename: str = "fenecon_voltage_data.csv"   # "REP_fenecon_voltage_data_v5_test.csv"
 timecolumn = 'Zeitstempel'  # x-axis in most plots
 colors = {"background_plot": "#DEDEDE", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
@@ -506,11 +509,11 @@ def create_correlation_div(_df):
         dcc.Graph(id="correlation_div", figure=fig)
     ], id="correlation_row_div", className="div_class", style={'display': 'flex', 'flex-direction': 'row'})
 
-
+from pandas.tseries.offsets import MonthEnd
 def get_df_with_transformed_date_and_rangeslider_marker(_df):
     """
     Returns a flag, the edited dataframe and a marker for the rangeslider.
-    The returns flag 'hour' or 'day' or 'minute' tells us if it is rounded to hours or to days.
+    The returns flag 'hour' or 'day' or 'minute' tells us if it is rounded to hours or to days or month.
     df.
     The marker dict is a dict used to set the markers for a rangeslider to the datetime.
     :param _df:
@@ -522,9 +525,17 @@ def get_df_with_transformed_date_and_rangeslider_marker(_df):
     flag = "hour"
     df_new_time = _df.copy()
     difference = max(df_new_time[timecolumn]) - min(df_new_time[timecolumn])
-    if difference > pd.Timedelta(2, "d"):
+    if difference > pd.Timedelta(1, "m"):
+        # set values to end of current month
+        # to_datetime only works on strings for reformatting!, else use df.date.dt.strftime("")!
+        # so the format here is useless
+        df_new_time[timecolumn] = pd.to_datetime(df_new_time[timecolumn], format='%Y-%m-%d') + MonthEnd(0)
+        df_new_time[timecolumn] = df_new_time[timecolumn].dt.floor(freq="d")  # round to days as well to get uniform vals below day
+        flag = "month"
+
+    elif difference > pd.Timedelta(2, "d"):
         # reduce time timestamp resolution to per day basis
-        df_new_time[timecolumn] = df_new_time[timecolumn].dt.date   # floors to closest day without time
+        df_new_time[timecolumn] = df_new_time[timecolumn].dt.round(freq="d") #.date   # floors to closest day without time
         flag = "day"
     elif difference > pd.Timedelta(2, "H"):
         # timedelta.round(freq='H')
@@ -534,17 +545,21 @@ def get_df_with_transformed_date_and_rangeslider_marker(_df):
         df_new_time[timecolumn] = df_new_time[timecolumn].dt.round(freq="min")
         flag = "minute"
 
-    # MARKER
+    # MARKER https://pandas.pydata.org/docs/reference/api/pandas.Period.strftime.html
     numdate = [x for x in range(len(df_new_time[timecolumn].unique()))]
     if flag == "day":
         marker = {numd: {"label": date.strftime('%d/%m/%y'), "style": {"color": colors["text"]}} for numd, date in
-                     zip(numdate, df_new_time[timecolumn].unique())}
+                  zip(numdate, df_new_time[timecolumn].unique())}
     elif flag == "hour":
         marker = {numd: {"label": date.strftime('%d/%m/%y %H:%M'), "style": {"color": colors["text"]}} for numd, date in
                   zip(numdate, df_new_time[timecolumn].unique())}
     elif flag == "minute":
         marker = {numd: {"label": date.strftime('%d/%m/%y %H:%M'), "style": {"color": colors["text"]}} for numd, date in
                   zip(numdate, df_new_time[timecolumn].unique())}
+    elif flag == "month":
+        marker = {numd: {"label": date.strftime('%m/%y'), "style": {"color": colors["text"]}} for numd, date in
+                  zip(numdate, df_new_time[timecolumn].unique())}
+
     return flag, df_new_time, marker
 
 
@@ -568,23 +583,38 @@ def get_df_mask_from_rangeslider(flag, _rounded_df, _df_to_mask, minval, maxval)
     :rtype:
     """
     # translate the numbers from the slider to the dates then timedates
-    from_val = _rounded_df[timecolumn].unique()[minval]
-    to_val = _rounded_df[timecolumn].unique()[maxval]
-    from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
-    to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
-    # no time added for hour since hour is rounded and not floored
-    if flag == "hour":
-        # add 1 hour -1 sec
-        to_val = to_val + pd.Timedelta("00:30:59")
-    if flag == "day":
-        # add 24h -1 sec
-        to_val = to_val + pd.Timedelta("23:59:59")
-    if flag == "minute":
-        # add 24h -1 sec
-        from_val = from_val - pd.Timedelta("00:00:59")
-        to_val = to_val + pd.Timedelta("00:00:59")
-    # filter the original df (with datetime not date) to contain only data within the selected dates
-    mask = (_df_to_mask[timecolumn] >= from_val) & (_df_to_mask[timecolumn] <= to_val)
+    logging.debug(f"Checking maxval {maxval} and unique times {len(_rounded_df[timecolumn].unique())}")
+    try:
+        from_val = _rounded_df[timecolumn].unique()[minval]
+        to_val = _rounded_df[timecolumn].unique()[maxval]
+        from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
+        to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
+        # no time added for hour since hour is rounded and not floored
+        if flag == "hour":
+            # add 1 hour -1 sec
+            to_val = to_val + pd.Timedelta("00:30:59")
+        if flag == "day":
+            # add 24h -1 sec
+            to_val = to_val + pd.Timedelta("23:59:59")
+        if flag == "minute":
+            # add 24h -1 sec
+            from_val = from_val - pd.Timedelta("00:00:59")
+            to_val = to_val + pd.Timedelta("00:00:59")
+        if flag == "month":
+            # hacky solution to get all days in the first month since all dates have been set to the last day in every month
+            # which is good for the to_val but bad for the from_val in which all days would be missing
+            # TODO find better solution in get_df_with_transformed_date_and_rangeslider_marker when rounding to month
+            from_val = from_val - pd.Timedelta(days=30)
+        # filter the original df (with datetime not date) to contain only data within the selected dates
+        mask = (_df_to_mask[timecolumn] >= from_val) & (_df_to_mask[timecolumn] <= to_val)
+    except Exception as e:
+        print(f"DEFAULT MASK USED SOME ERROR OCCURED! {e}")
+        logging.error("####################################")
+        logging.error(f"Error while getting time values:{e}")
+        logging.debug(f"Recieved min and max {minval} {maxval} and unique times are {_rounded_df[timecolumn].unique()}"
+                      f"with the flag {flag}")
+        mask = (_df_to_mask[timecolumn] >= from_val)  # fallback mask
+
     return mask
 
 
@@ -810,11 +840,16 @@ def interval_adjust_rangeslider(n):
     :return:
     :rtype:
     """
+    # Here the global df needs to be reloaded in order to update for current data
+    # even though callbacks shouldnt be used to update global vars, this probably is fince since its an interval
+    # todo maybe use a filesystem cache and a dc.store element as input for df in every callback, as alternative
+    # https://dash.plotly.com/sharing-data-between-callbacks
     global global_df
     global_df = read_data_as_df(filename)
-    logging.debug(f"load csv again, refresh interval {n}")
 
     _, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
+    logging.debug(f"load csv again, refresh interval {n}: unique times {len(tmp_df[timecolumn].unique())}")
+
     numdate = [x for x in range(len(tmp_df[timecolumn].unique()))]
     new_min = numdate[0]
     new_max = numdate[-1]
@@ -838,10 +873,6 @@ def interval_adjust_rangeslider(n):
     prevent_initial_call=True
 )
 def refresh_all_graphs_on_interval(_, selected_year_range, checkbox, dropdown_value, marker_checkbox, sel_module_id):
-    # Here the global df needs to be reloaded in order to update for current data
-    # even though callbacks shouldnt be used to update global vars, this probably is fince since its an interval
-    # todo maybe use a filesystem cache and a dc.store element as input for df in every callback, as alternative
-    # https://dash.plotly.com/sharing-data-between-callbacks
     logging.debug(f"refresh all graphs interval")
 
     # first get the transformed timestamps (as date or rounded to full hour)
@@ -911,9 +942,8 @@ if __name__ == "__main__":
     print("main running")
     logging.info("main running")
 
-    app.run_server(debug=False, port=8050, dev_tools_hot_reload=False)
+    app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
 
-    # Todo config file to change urls?
 
 
 

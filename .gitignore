@@ -8,6 +8,11 @@ __pycache__/
 # C extensions
 *.so
 
+#generated Data
+data/DashboardLog.log
+data/fenecon_voltage_data.csv
+data/dataCollectionLog.log
+
 # Distribution / packaging
 .Python
 build/
