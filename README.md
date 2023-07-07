@@ -141,7 +141,22 @@ When using SSH to connect to the host machine (in example a raspberry pi) make s
 So you open a terminal on your computer, connect to the raspberry or linux machine via SSH, then you run the commands and before the docker run command enter a screen. This way you can close the terminal on your computer without interrupting the running programs (docker container).
 To install linux screen on the host machine use `sudo apt-get install screen`.
 
+#### Linux Screen commands
+**create screen**
+```
+screen -S NAME
+```
+**enter screen**
+```
+screen -r NAME
+```
+**leave screen**
+press: ctrl+a+d
 
+**list screens**
+```
+screen -ls
+```
 
 ## On Windows
 **1. Enable WSL**
