@@ -40,6 +40,7 @@ app = dash.Dash(__name__, prevent_initial_callbacks="initial_duplicate")  # defa
 
 VERSION = "0.2.3"
 filename: str = "fenecon_voltage_data.csv"   # "REP_fenecon_voltage_data_v5_test.csv"
+filename = "REP_fenecon_voltage_data_v5_test.csv"
 timecolumn = 'Zeitstempel'  # x-axis in most plots
 colors = {"background_plot": "#DEDEDE", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
 GLOBAL_GRAPH_MARGINS = {"l":80, "r":30, "t":5, "b":10}
@@ -371,6 +372,7 @@ def create_settingsdiv(secondary_column_names):
     return html.Div([
 
         html.H3("Settings:", id="settings_label"),
+        html.Plaintext("These Settings apply to the two graphs above this section!"),
 
         html.Div([
             dcc.Checklist(options=["Show secondary y-axis", "Use delta value"], id="secondary_y_checkbox",
@@ -528,14 +530,13 @@ def get_df_with_transformed_date_and_rangeslider_marker(_df):
     flag = "hour"
     df_new_time = _df.copy()
     difference = max(df_new_time[timecolumn]) - min(df_new_time[timecolumn])
-    if difference > pd.Timedelta(1, "m"):
+    if difference > pd.Timedelta(3, "m"):
         # set values to end of current month
         # to_datetime only works on strings for reformatting!, else use df.date.dt.strftime("")!
         # so the format here is useless
         df_new_time[timecolumn] = pd.to_datetime(df_new_time[timecolumn], format='%Y-%m-%d') + MonthEnd(0)
         df_new_time[timecolumn] = df_new_time[timecolumn].dt.floor(freq="d")  # round to days as well to get uniform vals below day
         flag = "month"
-
     elif difference > pd.Timedelta(2, "d"):
         # reduce time timestamp resolution to per day basis
         df_new_time[timecolumn] = df_new_time[timecolumn].dt.round(freq="d") #.date   # floors to closest day without time
@@ -645,7 +646,7 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
         create_headerdiv(),
         dcc.Interval(
             id='interval-component',
-            interval= 120 * 1000,  # in milliseconds
+            interval= 300 * 1000,  # in milliseconds
             n_intervals=0
         ),
 
@@ -897,7 +898,6 @@ def refresh_all_graphs_on_interval(_, selected_year_range, checkbox, dropdown_va
     # Create new figure return that figure
     fig = create_fig_graphobject(filtered_df, global_module_names, show_secondary_axis, dropdown_value,
                                  use_delta, show_marker)
-    #fig.update_layout(legend_title_text="blabla")
 
     # Update Avg Bar plot
     barfig = create_bar_fig(filtered_df, global_module_names)
@@ -945,7 +945,7 @@ if __name__ == "__main__":
     print("main running")
     logging.info("main running")
 
-    app.run_server(debug=False, port=8050, dev_tools_hot_reload=False)
+    app.run_server(debug=True, port=8050, dev_tools_hot_reload=True)
 
 
 
