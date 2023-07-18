@@ -38,7 +38,7 @@ logging.basicConfig(filename=os.path.join(data_path, 'DashboardLog.log'), level=
 app = dash.Dash(__name__, prevent_initial_callbacks="initial_duplicate")  # default: http://127.0.0.1:8050
 # Dash automatically loads CSS files that are in the assets folder
 
-VERSION = "0.2.3"
+VERSION = "0.3.0"
 filename: str = "fenecon_voltage_data.csv"   # "REP_fenecon_voltage_data_v5_test.csv"
 timecolumn = 'Zeitstempel'  # x-axis in most plots
 colors = {"background_plot": "#DEDEDE", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
