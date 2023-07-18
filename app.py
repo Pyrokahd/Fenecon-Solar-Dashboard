@@ -611,12 +611,38 @@ def get_df_mask_from_rangeslider(flag, _rounded_df, _df_to_mask, minval, maxval)
         # filter the original df (with datetime not date) to contain only data within the selected dates
         mask = (_df_to_mask[timecolumn] >= from_val) & (_df_to_mask[timecolumn] <= to_val)
     except Exception as e:
-        print(f"DEFAULT MASK USED SOME ERROR OCCURED! {e}")
-        logging.error("####################################")
-        logging.error(f"Error while getting time values:{e}")
-        logging.debug(f"Recieved min and max {minval} {maxval} and unique times are {_rounded_df[timecolumn].unique()}"
-                      f"with the flag {flag}")
-        mask = (_df_to_mask[timecolumn] >= from_val)  # fallback mask
+        # TODO FIND THE CAUSE OF THIS ERROR (Why is maxval 1 too high?) check where it is calculated and why it doesnt fit for example with 11 days
+        # DEFAULT MASK USED SOME ERROR OCCURED! index 13 is out of bounds for axis 0 with size 12
+
+        logging.error(f"Error while getting time values:{e} => reducing maxval by one")
+        # TRY EXACT SAME BUT -1 ON MAX VALUE
+        try:
+            from_val = _rounded_df[timecolumn].unique()[minval]
+            to_val = _rounded_df[timecolumn].unique()[maxval-1]
+            from_val = pd.to_datetime(from_val, format='%Y-%m-%d %H:%M:%S.%f')
+            to_val = pd.to_datetime(to_val, format='%Y-%m-%d %H:%M:%S.%f')
+            # no time added for hour since hour is rounded and not floored
+            if flag == "hour":
+                # add 1 hour -1 sec
+                to_val = to_val + pd.Timedelta("00:30:59")
+            if flag == "day":
+                # add 24h -1 sec
+                to_val = to_val + pd.Timedelta("23:59:59")
+            if flag == "minute":
+                # add 24h -1 sec
+                from_val = from_val - pd.Timedelta("00:00:59")
+                to_val = to_val + pd.Timedelta("00:00:59")
+            if flag == "month":
+                from_val = from_val - pd.Timedelta(days=30)
+            # filter the original df (with datetime not date) to contain only data within the selected dates
+            mask = (_df_to_mask[timecolumn] >= from_val) & (_df_to_mask[timecolumn] <= to_val)
+        except Exception as e:
+            print(f"DEFAULT MASK USED SOME ERROR OCCURED! {e}")
+            logging.error("####################################")
+            logging.error(f"Error while getting time values:{e}")
+            logging.debug(f"Recieved min and max {minval} {maxval} and unique times are {_rounded_df[timecolumn].unique()}"
+                          f"with the flag {flag}")
+            mask = (_df_to_mask[timecolumn] >= from_val)  # fallback mask
 
     return mask
 
@@ -658,7 +684,7 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
                 value=14,
                 min=1, max=6*30,
             ),
-            html.Label(" days of data.")
+            html.Label(" days of data. (After changing the value, it may take a few seconds to update)")
         ], style={"margin": f"0px 0px 0px {GLOBAL_GRAPH_MARGINS['l']}px"}),
         html.Div([
             html.H2("The mV value per module as average over its cells:",
@@ -737,14 +763,20 @@ def update_rangeslider_marks(vals, marks):
     State("secondary_y_checkbox", "value"),
     State("secondary_y_dropdown", "value"),
     State("showmarker_checkbox", "value"),
+    State("lastxdays_input", "value"),
     prevent_initial_call=True
 )
-def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdown_value, marker_checkbox):
+def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdown_value, marker_checkbox, last_x_days):
     # first get the transformed timestamps (as date or rounded to full hour)
 
-    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(global_df)
-    mask = get_df_mask_from_rangeslider(flag, tmp_df, global_df, selected_year_range[0], selected_year_range[1])
-    filtered_df = global_df.loc[mask]
+    to_val = global_df[timecolumn].max()  # last date
+    from_val = to_val - pd.Timedelta(days=last_x_days)
+    data_mask = (global_df[timecolumn] >= from_val) & (global_df[timecolumn] <= to_val)
+    current_df = global_df.loc[data_mask]
+
+    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(current_df)
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, current_df, selected_year_range[0], selected_year_range[1])
+    filtered_df = current_df.loc[mask]
 
     show_secondary_axis = False
     use_delta = False
@@ -784,15 +816,22 @@ def update_figures_timespan(selected_year_range, sel_module_id, checkbox, dropdo
     Output("cell_bar_fig", "figure", allow_duplicate=True),
     Input("module-dropdown", "value"),
     State("date_rangeslider", "value"),
+    State("lastxdays_input", "value"),
     prevent_initial_call=True
 )
-def update_cell_figures(sel_module_id, selected_year_range):
+def update_cell_figures(sel_module_id, selected_year_range, last_x_days):
     # year_range is a list with two numbers left and right value
     # first get the timestamps as date (without time) as tempdf
     # first get the transformed timestamps (as date or rounded to full hour)
-    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(global_df)
-    mask = get_df_mask_from_rangeslider(flag, tmp_df, global_df, selected_year_range[0], selected_year_range[1])
-    filtered_df = global_df.loc[mask]
+
+    to_val = global_df[timecolumn].max()  # last date
+    from_val = to_val - pd.Timedelta(days=last_x_days)
+    data_mask = (global_df[timecolumn] >= from_val) & (global_df[timecolumn] <= to_val)
+    current_df = global_df.loc[data_mask]
+
+    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(current_df)
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, current_df, selected_year_range[0], selected_year_range[1])
+    filtered_df = current_df.loc[mask]
 
     # Update Cell line and bar figures
     cell_line, cell_bar = create_mV_plots_per_cell_for_one_module(filtered_df, global_module_names, global_cell_names,
@@ -810,15 +849,22 @@ def update_cell_figures(sel_module_id, selected_year_range):
     Input("secondary_y_dropdown", "value"),
     Input("showmarker_checkbox", "value"),
     State("date_rangeslider", "value"),
+    State("lastxdays_input","value"),
     prevent_initial_call=True
 )
-def update_secondary_axis_in_lineplot(checkbox, dropdown_value, marker_checkbox, selected_year_range):
+def update_secondary_axis_in_lineplot(checkbox, dropdown_value, marker_checkbox, selected_year_range, last_x_days):
     # year_range is a list with two numbers left and right value
     # first get the timestamps as date (without time) as tempdf
     # first get the transformed timestamps (as date or rounded to full hour)
-    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(global_df)
-    mask = get_df_mask_from_rangeslider(flag, tmp_df, global_df, selected_year_range[0], selected_year_range[1])
-    filtered_df = global_df.loc[mask]
+
+    to_val = global_df[timecolumn].max()  # last date
+    from_val = to_val - pd.Timedelta(days=last_x_days)
+    data_mask = (global_df[timecolumn] >= from_val) & (global_df[timecolumn] <= to_val)
+    current_df = global_df.loc[data_mask]
+
+    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(current_df)
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, current_df, selected_year_range[0], selected_year_range[1])
+    filtered_df = current_df.loc[mask]
 
     show_secondary_axis = False
     use_delta = False
@@ -880,6 +926,34 @@ def interval_adjust_rangeslider(n, last_x_days):
 
 
 @app.callback(
+    Output('date_rangeslider', 'min', allow_duplicate=True),
+    Output('date_rangeslider', 'max', allow_duplicate=True),
+    Output('date_rangeslider', 'value', allow_duplicate=True),
+    Output('date_rangeslider', 'marks', allow_duplicate=True),
+    Input("lastxdays_input", "value")
+)
+def lastxdays_adjust_rangeslider2(last_x_days):
+
+    # adjust to last x days
+    to_val = global_df[timecolumn].max()  # last date
+    from_val = to_val - pd.Timedelta(days=last_x_days)
+    data_mask = (global_df[timecolumn] >= from_val) & (global_df[timecolumn] <= to_val)
+    current_df = global_df.loc[data_mask]
+
+    _, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(current_df)
+
+    numdate = [x for x in range(len(tmp_df[timecolumn].unique()))]
+    new_min = numdate[0]
+    new_max = numdate[-1]
+    value = [new_min, new_max]
+
+    return new_min, new_max, value, marker
+
+
+def test():
+    print(global_df)
+
+@app.callback(
     Output("linefig", "figure", allow_duplicate=True),
     Output('barfig', 'figure', allow_duplicate=True),
     Output("cell_line_fig", "figure", allow_duplicate=True),
@@ -894,7 +968,7 @@ def interval_adjust_rangeslider(n, last_x_days):
     State("module-dropdown", "value"),
     prevent_initial_call=True
 )
-def refresh_all_graphs_on_interval(_, last_x_days, selected_year_range, checkbox, dropdown_value, marker_checkbox, sel_module_id):
+def refresh_all_graphs_on_interval(_, last_x_days, selected_year_range, checkbox, dropdown_value, marker_checkbox, sel_module_id, ):
     logging.debug(f"refresh all graphs interval")
 
     to_val = global_df[timecolumn].max()  # last date
