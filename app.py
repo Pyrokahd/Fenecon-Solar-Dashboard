@@ -40,7 +40,6 @@ app = dash.Dash(__name__, prevent_initial_callbacks="initial_duplicate")  # defa
 
 VERSION = "0.2.3"
 filename: str = "fenecon_voltage_data.csv"   # "REP_fenecon_voltage_data_v5_test.csv"
-filename = "REP_fenecon_voltage_data_v5_test.csv"
 timecolumn = 'Zeitstempel'  # x-axis in most plots
 colors = {"background_plot": "#DEDEDE", "text": "#cce7e8", "text_disabled": "#779293", "background_area": "#1d2c45"}
 GLOBAL_GRAPH_MARGINS = {"l":80, "r":30, "t":5, "b":10}
@@ -530,7 +529,7 @@ def get_df_with_transformed_date_and_rangeslider_marker(_df):
     flag = "hour"
     df_new_time = _df.copy()
     difference = max(df_new_time[timecolumn]) - min(df_new_time[timecolumn])
-    if difference > pd.Timedelta(3, "m"):
+    if difference > pd.Timedelta(91, "d"):
         # set values to end of current month
         # to_datetime only works on strings for reformatting!, else use df.date.dt.strftime("")!
         # so the format here is useless
@@ -649,7 +648,18 @@ def create_app_layout(df, module_names, all_cell_names, secondary_column_names):
             interval= 300 * 1000,  # in milliseconds
             n_intervals=0
         ),
-
+        # Data length setting
+        html.Div([
+            html.Label("Show last "),
+            dcc.Input(
+                id="lastxdays_input",
+                type="number",
+                placeholder="14",
+                value=14,
+                min=1, max=6*30,
+            ),
+            html.Label(" days of data.")
+        ], style={"margin": f"0px 0px 0px {GLOBAL_GRAPH_MARGINS['l']}px"}),
         html.Div([
             html.H2("The mV value per module as average over its cells:",
                     style={"margin": f"50px 5px 20px {GLOBAL_GRAPH_MARGINS['l']}px"}),
@@ -835,9 +845,10 @@ def update_secondary_axis_in_lineplot(checkbox, dropdown_value, marker_checkbox,
     Output('date_rangeslider', 'max'),
     Output('date_rangeslider', 'value'),
     Output('date_rangeslider', 'marks', allow_duplicate=True),
-    Input("interval-component", "n_intervals")
+    Input("interval-component", "n_intervals"),
+    State("lastxdays_input","value")
 )
-def interval_adjust_rangeslider(n):
+def interval_adjust_rangeslider(n, last_x_days):
     """
     Update the rangeslider with possibly new data
     This is then the input for the refresh_all_graphs_on_interval.
@@ -849,7 +860,13 @@ def interval_adjust_rangeslider(n):
     # todo maybe use a filesystem cache and a dc.store element as input for df in every callback, as alternative
     # https://dash.plotly.com/sharing-data-between-callbacks
     global global_df
+    # read data again (to update for newly collected data)
     global_df = read_data_as_df(filename)
+    # adjust to last x days
+    to_val = global_df[timecolumn].max()  # last date
+    from_val = to_val - pd.Timedelta(days=last_x_days)
+    data_mask = (global_df[timecolumn] >= from_val) & (global_df[timecolumn] <= to_val)
+    global_df = global_df.loc[data_mask]
 
     _, tmp_df, marker = get_df_with_transformed_date_and_rangeslider_marker(global_df)
     logging.debug(f"load csv again, refresh interval {n}: unique times {len(tmp_df[timecolumn].unique())}")
@@ -869,6 +886,7 @@ def interval_adjust_rangeslider(n):
     Output("cell_bar_fig", "figure", allow_duplicate=True),
     Output("delta_fig", "figure", allow_duplicate=True),
     Input('date_rangeslider', 'marks'),
+    Input("lastxdays_input", "value"),
     State("date_rangeslider", "value"),
     State("secondary_y_checkbox", "value"),
     State("secondary_y_dropdown", "value"),
@@ -876,13 +894,18 @@ def interval_adjust_rangeslider(n):
     State("module-dropdown", "value"),
     prevent_initial_call=True
 )
-def refresh_all_graphs_on_interval(_, selected_year_range, checkbox, dropdown_value, marker_checkbox, sel_module_id):
+def refresh_all_graphs_on_interval(_, last_x_days, selected_year_range, checkbox, dropdown_value, marker_checkbox, sel_module_id):
     logging.debug(f"refresh all graphs interval")
 
+    to_val = global_df[timecolumn].max()  # last date
+    from_val = to_val - pd.Timedelta(days=last_x_days)
+    data_mask = (global_df[timecolumn] >= from_val) & (global_df[timecolumn] <= to_val)
+    current_df = global_df.loc[data_mask]
+
     # first get the transformed timestamps (as date or rounded to full hour)
-    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(global_df)
-    mask = get_df_mask_from_rangeslider(flag, tmp_df, global_df, selected_year_range[0], selected_year_range[1])
-    filtered_df = global_df.loc[mask]
+    flag, tmp_df, _ = get_df_with_transformed_date_and_rangeslider_marker(current_df)
+    mask = get_df_mask_from_rangeslider(flag, tmp_df, current_df, selected_year_range[0], selected_year_range[1])
+    filtered_df = current_df.loc[mask]
 
     # Update the graphs
     show_secondary_axis = False
@@ -930,6 +953,13 @@ avg_module_values, module_names = get_list_of_avg_module_voltage_values(cell_val
 global_secondary_column_names = [x for x in df.columns if
                                  x not in cell_names + module_names + [timecolumn] and x[:6] != "Module"]
 global_df = df  # to have a global reference to use in callbacks
+# Mask to get only last 14 days
+to_val = global_df[timecolumn].max()  # last date
+from_val = to_val - pd.Timedelta(days=14)
+
+data_mask = (global_df[timecolumn] >= from_val) & (global_df[timecolumn] <= to_val)
+global_df = global_df.loc[data_mask]
+
 global_module_names = module_names
 global_cell_names = cell_names
 

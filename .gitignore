@@ -9,7 +9,6 @@ __pycache__/
 *.so
 
 #generated Data
-data/
 data/DashboardLog.log
 data/fenecon_voltage_data.csv
 data/dataCollectionLog.log
