@@ -45,6 +45,8 @@ git clone https://github.com/Pyrokahd/Fenecon-Solar-Dashboard.git
 ```
 
 ### Setting a static IP for your raspberry pi
+**Note** you still have to set a static IP in your router settings.
+
 If the server is a raspberry pi (i am using a raspberry pi 4) then you might want to set a static ip adress for it:
 
 1. Get Router IP and DNS IP   <br>
