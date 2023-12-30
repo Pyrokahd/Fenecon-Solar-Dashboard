@@ -15,10 +15,10 @@ import json
 
 # current dir and then into data
 data_path = os.path.abspath( os.path.join( os.path.dirname(os.path.realpath(__file__)), "data"))
-logging.basicConfig(filename=os.path.join(data_path, 'dataCollectionLog.log'), encoding='utf-8', level=logging.DEBUG,
+logging.basicConfig(filename=os.path.join(data_path, 'dataCollectionLog.log'), encoding='utf-8', level=logging.INFO,  # DEBUG
                     format='%(asctime)s %(levelname)-8s %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 print("done importing")
-logging.info("done importing")
+#logging.info("done importing")
 
 # SETTINGS
 with open("config.json", "r") as f:
@@ -200,7 +200,7 @@ def collection_loop():
         start = time.time()
         # explorerhat.light[3].on()  # green lamp on = explorer is reading data
         print("Running start of loop ...")
-        logging.info("Running start of loop ...")
+        #logging.info("Running start of loop ...")
 
         addHeader = True
         if exists(filename):
@@ -231,7 +231,7 @@ def collection_loop():
 
             # Add the row to a csv file
             print("adding row ...")
-            logging.info("adding row ...")
+            #logging.info("adding row ...")
             with open(filename, "a", newline='') as csvfile:
                 writer = csv.writer(csvfile)
                 if addHeader:
@@ -248,7 +248,7 @@ def collection_loop():
             # explorerhat.light[3].off()
 
             print(f"Iteration took: {time.time() - start} s")
-            logging.info(f"Iteration took: {time.time() - start} s")
+            #logging.info(f"Iteration took: {time.time() - start} s")
 
             # Wait for 60 seconds
             # print("waiting ...")
